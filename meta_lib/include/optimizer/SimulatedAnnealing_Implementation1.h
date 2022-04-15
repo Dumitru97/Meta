@@ -11,13 +11,16 @@ namespace Meta
 {
 	inline constexpr int sa_func_reps = 3000;
 	inline constexpr float sa_func_temp = 25;
+	inline constexpr int sa_func_reps_increment = 5;
+	inline constexpr float sa_func_temp_decrement = 0.05f;
 	inline constexpr float sa_func_pow_mult = 20;
 
 	template<typename FuncsDataRealTypeIn, typename OrderDataRealTypeIn>
 	struct SAFunctionOrderSettings : public SimulatedAnnealingSettings<SAFunctionOrderSettings<FuncsDataRealTypeIn, OrderDataRealTypeIn>>
 	{
-		//idxs in orig funcs, use funcs_perm to get current idxs
-		struct Delta {
+		// Structs and typedefs
+	public:
+		struct Delta { // Func idxs/ID in original order, use funcs_perm to get current idxs
 			int origIdx1;
 			int origIdx2;
 		};
@@ -26,112 +29,47 @@ namespace Meta
 		using cost_t = double;
 		using reps_t = int;
 
-		//using function = function;
-		std::mt19937 gen;
-		int udistr_res;
-		std::uniform_int_distribution<int> swapUnifDistr;
-
 		using FuncsDataType = std::remove_cvref_t<FuncsDataRealTypeIn>;
 		using OrderDataType = std::remove_cvref_t<OrderDataRealTypeIn>;
 		using UnusedType = int;
 
+#define fdata funcsData
+#define delta_func_ID 0
+#define delta_fswaps_count 1
+
+		// Member variables
+	public:
 		OrderDataType ordersData;
 		FuncsDataType funcsData;
-#define fdata funcsData
-
 		static constexpr int funcCount = FuncsDataType::count;
 
+#define fswap_mat funcsData.fswap_mat
+#define fcmp_mat  funcsData.fcmp_mat
 
-		//use this before sorting so that for loop indexing matches func ID
-		//first value is the ID of the function that will be swapped w/ another
-		//second value is num of following func IDs, this value is taking the place of self ID before it
-		//following values are IDs of functions this current one can be swapped with
-#define delta_fid 0
-#define delta_fswaps_num 1
-		int delta_swap_mat_size{}; //number of funcs/rows in mat below, these funcs are swappable
-		std::array<std::array<int, funcCount + 1>, funcCount> delta_swap_mat{}; //orig indexing
+		// Holds for every function all the functions that it can be swapped with. Used in NeighbourDelta().
+		std::array<std::array<int, funcCount + 2 - 1>, funcCount> delta_swap_mat{};	// +2(func id and row size) -1(excluding self swapping)
+		int delta_swappable_func_count{};											// Number of swappable functions in delta_swap_mat
 
-		std::array<int, funcCount> funcs_perm{}; //[x] represents the IDX in the FUNCS array of func with ID == x
+		std::array<int, funcCount> funcs_perm{}; // Use function ID to get the index in funcsData after optimizing
 
-		std::array<std::array<bool, funcCount>, funcCount> fswap_mat{}; //orig indexing
-		std::array<std::array<bool, funcCount>, funcCount> fcmp_mat{};  // < comparison, orig indexing
+		std::mt19937 gen;
+		std::uniform_int_distribution<int> swapUnifDistr;
 
-		//returns f1 < f2
-		std::pair<bool, bool> FuncOrdersCmp(const int fidx1, const int fidx2) {
-			if (fidx1 == fidx2)
-				return { true, true };
-
-			const span<int> fords1 = fdata.f_orders(fidx1);
-			const span<int> fords2 = fdata.f_orders(fidx2);
-
-			//different functions but same order symbols
-			if (fords1.len == fords2.len) {
-				bool same = true;
-				for (int i = 0; i < fords1.len; ++i)
-					if (fords1[i] != fords2[i]) {
-						same = false;
-						break;
-					}
-				if (same)
-					return { true, true };
-			}
-
-			bool smaller1 = true;
-			for (int i = 0; i < fords1.len; ++i)
-				for (int j = 0; j < fords2.len; ++j)
-					if (!ordersData.cmp_mat[fords1[i]][fords2[j]]) {
-						smaller1 = false;
-						j = fords2.len;
-						i = fords1.len;
-					}
-
-			bool smaller2 = true;
-			for (int i = 0; i < fords2.len; ++i)
-				for (int j = 0; j < fords1.len; ++j)
-					if (!ordersData.cmp_mat[fords2[i]][fords1[j]]) {
-						smaller2 = false;
-						j = fords1.len;
-						i = fords2.len;
-					}
-
-			//unlike orders, both functions can be wrongfully !smaller than eachother
-			if (!smaller1 && !smaller2)
-				throw;
-
-			return { smaller1, smaller2 };
-		}
-
+		//Member functions for the CRTP interface
+	public:
 		UnusedType TransformInput(const auto& ord_funcs_pair) {
-			//this->funcs = std::forward<decltype(functions)>(functions);
+			// Copy into member variables
 			ordersData = ord_funcs_pair.first;
 			funcsData = ord_funcs_pair.second;
 
+			// Sort parameters for Jaccard index calculation
 			for (int i = 0; i < funcCount; ++i) {
 				span<int> vec = funcsData.f_params(i);
 				std::sort(vec.data, vec.data + vec.len);
 			}
 
-			//ver1
-			for (int i = 0; i < funcCount; ++i)
-				for (int j = 0; j < funcCount; ++j) {
-					const std::pair<bool, bool> cmp = FuncOrdersCmp(i, j);
-					fcmp_mat[i][j] = cmp.first;
-					fswap_mat[i][j] = cmp.first && cmp.second;
-				}
-
-			//ver2
-			//for (int i = 0; i < funcCount; ++i)
-			//	for (int j = i; j < funcCount; ++j) {
-			//		const std::pair<bool, bool> cmp = FuncOrdersCmp(funcsData, i, j);
-			//		fcmp_mat[i][j] = cmp.first;
-			//		fcmp_mat[j][i] = cmp.second;
-			//		fswap_mat[j][i] = (fswap_mat[i][j] = cmp.first && cmp.second);
-			//	}
-
-#define delta_swap_row_offset 2
-//col_pos == row_idx
-//row_pos == col_idx
-//delta_swap_row_offset = col_idx_offset
+			// Compute delta_swap_mat
+			constexpr int delta_swap_row_offset = 2;
 			int col_pos = 0;
 			for (int i = 0; i < funcCount; ++i) {
 				int row_pos = delta_swap_row_offset;
@@ -139,105 +77,75 @@ namespace Meta
 					if (fswap_mat[i][j])
 						delta_swap_mat[col_pos][row_pos++] = j;
 				}
-				//skip i == j
 				for (int j = i + 1; j < funcCount; ++j) {
 					if (fswap_mat[i][j])
 						delta_swap_mat[col_pos][row_pos++] = j;
 				}
 
 				const int row_size = row_pos - delta_swap_row_offset;
-				//if unswappable, exclude
-				if (row_size == 0) {
-					--i;
+				// If unswappable, do not include in delta_swap_mat
+				if (row_size == 0)
 					continue;
-				}
 
-				delta_swap_mat[col_pos][0] = i; //func ID
+				delta_swap_mat[col_pos][0] = i; // Func ID
 				delta_swap_mat[col_pos][1] = row_size;
 				++col_pos;
 			}
-			delta_swap_mat_size = col_pos;
+			delta_swappable_func_count = col_pos;
 
-
-			//sorting, ID == idx at this line
-			int pos = 0;
+			// Sorting the functions into a valid ordering, ID == idx will not true anymore
+			// Computing funcs_perm
+			int pos = 0; // Position of min function to be found
 			for (int i = pos; i < funcCount; ++i) {
 				bool isMin = true;
+
+				// Check if smaller than all
 				for (int j = pos; j < funcCount; ++j) {
-					//check if smaller than all
-					if (!fcmp_mat[funcsData.funcs[i].ID][funcsData.funcs[j].ID]) {
+					if (!fcmp_mat[fdata.funcs[i].ID][fdata.funcs[j].ID]) {
 						isMin = false;
 						break;
 					}
 				}
-				if (isMin) {//swap with pos if min
-					std::swap(funcsData.funcs[pos], funcsData.funcs[i]);
 
-					//the MIN that was in I is now in POS so we change funcs_perm[funcsData.funcs[pos].ID] 
-					funcs_perm[funcsData.funcs[pos].ID] = pos; //func with ID == i is on position pos in funcs
-					//funcs_perm[funcsData.funcs[i].ID] = i; //func with ID == i is on position pos in funcs
+				if (isMin) { // Swap with pos if min, otherwise 'i' advances to look for a min func
+					std::swap(fdata.funcs[pos], fdata.funcs[i]);
+					funcs_perm[fdata.funcs[pos].ID] = pos;
 
+					// Found a min and placed it in pos, now 'i' is reset
 					pos++;
-					i = pos - 1; //to negate i++
+					i = pos - 1; // To negate i++
 				}
 			}
 
-			//sanity check
-			//for (int i = 0; i < funcCount; ++i) {
-			//	int pos = funcs_perm[i];
-			//	if (funcsData.funcs[pos].ID != i) {
-			//		meta::compiler.print(__concatenate(funcsData.funcs[pos].ID, " ", i));
-			//		meta::compiler.print("BBBBBBBBBBBB");
-			//		throw;
-			//	}
-			//	else
-			//		;// meta::compiler.print(__concatenate(pos, " ", i));
-			//}
-
-			swapUnifDistr = std::uniform_int_distribution<int>(0, funcCount - 1);
-			udistr_res = swapUnifDistr(gen); //roll out a value
+			// Sanity check funcs_perm
+			for (int i = 0; i < funcCount; ++i) {
+				int pos = funcs_perm[i];
+				if (funcsData.funcs[pos].ID != i)
+					throw;
+			}
 
 			return {};
 		}
 
 		UnusedType InitialSolution(UnusedType) {
-			return 0;
+			return {};
 		}
 
 		bool CanBeOptimized(UnusedType) {
-			return funcCount > 1 && delta_swap_mat_size > 0;
-		}
-
-		cost_t GetCostAtMid(const int fidx) {
-			return Cost(fidx - 1, 3);
-		}
-
-		cost_t GetCostAtLeft(const int fidx) {
-			return Cost(fidx - 1, 2);
-		}
-
-		cost_t GetCostAtRight(const int fidx) {
-			return Cost(fidx, 2);
-		}
-
-		cost_t Cost(const int fstart, const int fnum) {
-			cost_t cost = 0.0f;
-			for (int i = fstart; i < fstart + fnum - 1; ++i)
-				cost += JaccardIndexOfSortedSets(fdata.f_params(fdata.funcs[i]), fdata.f_params(fdata.funcs[i + 1]));
-
-			return cost;
+			return funcCount > 1 && delta_swappable_func_count > 0;
 		}
 
 		cost_t Cost(const UnusedType) {
 			cost_t cost = 0.0f;
-			for (int i = 0; i < funcCount - 1; ++i)
-				cost += JaccardIndexOfSortedSets(fdata.f_params(fdata.funcs[i]), fdata.f_params(fdata.funcs[i + 1]));
+			for (int i = 0; i < funcCount - 1; ++i) {
+				const auto& currFunc = fdata.f_params(fdata.funcs[i]);
+				const auto& nextFunc = fdata.f_params(fdata.funcs[i + 1]);
+				cost += JaccardIndexOfSortedSets(currFunc, nextFunc);
+			}
 
 			return cost;
 		}
 
-
-		//fix what?
 		cost_t CostAndApply(UnusedType, cost_t cost, const Delta& delta) {
 
 			using StructType = std::remove_pointer_t<decltype(this)>;
@@ -274,13 +182,9 @@ namespace Meta
 				cost += newCostDelta;
 
 				std::swap(fidx1, fidx2);
-				//don't revert the swap because it's done in SA when calling
-				//calling RevertNeighbourDelta if we don't want to keep the change
-				//std::swap(dfuncs.funcs[fidx1], dfuncs.funcs[fidx2]);
-				//std::swap(fidx1, fidx2);
 			}
 
-
+			// Don't revert the swap because it's done in SA when calling RevertNeighbourDelta
 			return cost;
 		}
 
@@ -288,20 +192,21 @@ namespace Meta
 			bool validSwap = false;
 			int origIdx1, origIdx2;
 			while (!validSwap) {
-				//pick functions in the original indexing
+				// Random a swappable function
 				auto minVal = 0;
-				auto maxVal = delta_swap_mat_size - 1;
+				auto maxVal = delta_swappable_func_count - 1;
 				swapUnifDistr.param(typename std::uniform_int<int>::param_type{ minVal, maxVal });
 				const auto row = swapUnifDistr(gen);
-				origIdx1 = delta_swap_mat[row][delta_fid];
+				origIdx1 = delta_swap_mat[row][delta_func_ID];
 
-				minVal = delta_fswaps_num + 1;
-				maxVal = delta_swap_mat[row][delta_fswaps_num] - 1;//todo check
+				// Random a function to swap with
+				minVal = delta_fswaps_count + 1;
+				maxVal = delta_swap_mat[row][delta_fswaps_count] - 1;
 				swapUnifDistr.param(typename std::uniform_int<int>::param_type{ minVal, maxVal });
 				const int col = swapUnifDistr(gen);
 				origIdx2 = delta_swap_mat[row][col];
 
-				//swap because array limit cases in CostAndApply
+				// Order because array limit cases in CostAndApply
 				if (funcs_perm[origIdx2] < funcs_perm[origIdx1])
 					std::swap(origIdx1, origIdx2);
 
@@ -310,6 +215,8 @@ namespace Meta
 				//if (funcs_perm[origIdx2] == funcs_perm[origIdx1])
 				//	throw;
 
+				// Since swapping two distant functions can break ordering for the functions between them we 
+				// do incremental checks(with cursor) up to maxIdx. If failing along the way we settle for a function in between
 				int minIdx = funcs_perm[origIdx1];
 				int maxIdx = funcs_perm[origIdx2];
 
@@ -317,24 +224,25 @@ namespace Meta
 				if (maxIdx - minIdx == 1)
 					continue;
 
-				//do incremental checks to maxIdx target, if fail along the way we settle for worse
 				int cursor = minIdx + 1;
 				for (; cursor < maxIdx; ++cursor)
-					if (!fcmp_mat[fdata.funcs[cursor].ID][fdata.funcs[minIdx].ID])//looking in multiple rows
+					if (!fcmp_mat[fdata.funcs[cursor].ID][fdata.funcs[minIdx].ID]) // Looking in multiple rows to check if swap is valid
 						break;
-				if (cursor == minIdx + 1) { //didn't move cursor, can't swap w/ anything
+				if (cursor == minIdx + 1) { // Didn't move cursor, can't swap with anything
 					validSwap = false;
 					continue;
 				}
 				cursor--;
 
+				// Settled for initial maxIdx or a function in between
+				// Now checking if that maxIdx/cursor function can be swapped in the other direction to minIdx
 				maxIdx = cursor;
 				validSwap = false;
 				while (!validSwap) {
 					validSwap = true;
 					int j = maxIdx - 1;
 					for (; j > minIdx; --j)
-						if (!fcmp_mat[fdata.funcs[maxIdx].ID][fdata.funcs[j].ID]) {//looking in one row
+						if (!fcmp_mat[fdata.funcs[maxIdx].ID][fdata.funcs[j].ID]) { // Looking in one row to check if swap is valid
 							validSwap = false;
 							maxIdx--;
 							break;
@@ -357,14 +265,6 @@ namespace Meta
 
 			std::swap(fdata.funcs[fidx1], fdata.funcs[fidx2]);
 			std::swap(fidx1, fidx2);
-
-			//for (int i = 0; i < funcCount; ++i) {
-			//	int pos = funcs_perm[i];
-			//	if (fdata.funcs[pos].ID != i) {
-			//		meta::compiler.print(__concatenate(fdata.funcs[pos].ID, " ", i));
-			//		throw;
-			//	}
-			//}
 		}
 
 		void RevertNeighbourDelta(UnusedType, const Delta& delta) {
@@ -372,16 +272,12 @@ namespace Meta
 		}
 
 		float Probability(const cost_t neg_cost_diff, const temp_t temp) {
-			//neg_cost_diff is negative
 			return std::exp(neg_cost_diff / temp * sa_func_pow_mult);
-			//return gcem::exp<float>(neg_cost_diff / temp * sa_func_pow_mult);
 		}
 
 		void ChangeSchedules(const int k, temp_t& temp, reps_t& reps) {
-			/*temp -= 0.1f;
-			reps += 20;*/
-			temp -= 0.05f;
-			reps += 5;
+			temp -= sa_func_temp_decrement;
+			reps += sa_func_reps_increment;
 		}
 
 		void InitSchedules(temp_t& temp, reps_t& reps) {
@@ -390,18 +286,16 @@ namespace Meta
 		}
 
 		bool StopCheck(const temp_t& temp) {
-			const float val = (funcCount) / temp * sa_func_pow_mult; //maximum value supported by the approx
-			if (val < -700.0f || val > 700.0f)
-				return true;
 			return temp <= 0;
 		}
 
 		auto TransformOutput(const UnusedType) {
+			// Cmp sanity check
 			for (int i = 0; i < funcCount; ++i) {
 				bool isMin = true;
 				for (int j = i; j < funcCount; ++j) {
-					//check if smaller than all
-					if (!fcmp_mat[funcsData.funcs[i].ID][funcsData.funcs[j].ID]) {
+					// Check if smaller than all
+					if (!fcmp_mat[fdata.funcs[i].ID][fdata.funcs[j].ID]) {
 						isMin = false;
 						break;
 					}
@@ -410,7 +304,38 @@ namespace Meta
 					throw;
 			}
 
+			// Sanity check funcs_perm
+			for (int i = 0; i < funcCount; ++i) {
+				int pos = funcs_perm[i];
+				if (fdata.funcs[pos].ID != i)
+					throw;
+			}
+
 			return fdata;
+		}
+
+	private:
+		cost_t GetCostAtMid(const int fidx) {
+			return Cost(fidx - 1, 3);
+		}
+
+		cost_t GetCostAtLeft(const int fidx) {
+			return Cost(fidx - 1, 2);
+		}
+
+		cost_t GetCostAtRight(const int fidx) {
+			return Cost(fidx, 2);
+		}
+
+		cost_t Cost(const int fstart, const int fcount) {
+			cost_t cost = 0.0f;
+			for (int i = fstart; i < fstart + fcount - 1; ++i) {
+				const auto& currFunc = fdata.f_params(fdata.funcs[i]);
+				const auto& nextFunc = fdata.f_params(fdata.funcs[i + 1]);
+				cost += JaccardIndexOfSortedSets(currFunc, nextFunc);
+			}
+
+			return cost;
 		}
 	};
 

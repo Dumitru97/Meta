@@ -1,5 +1,6 @@
 .vs
 libs/
+meta_test/include/generated/
 
 # Prerequisites
 *.d

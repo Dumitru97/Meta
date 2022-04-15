@@ -53,7 +53,7 @@ inline int MetaOptimToFileHeaderFunc ## ON ## FN () {														\
 	consteval {																								\
 		constexpr auto ordersDataRI = Meta::CreateOrdersData<^ ON>();										\
 		constexpr auto paramsDataI = Meta::CreateParamsData<^ FN, ordersDataRI.imag>();						\
-		constexpr auto funcsDataRI = Meta::CreateFuncsData<^ FN>(paramsDataI, ordersDataRI.imag);			\
+		constexpr auto funcsDataRI = Meta::CreateFuncsData<^ FN>(paramsDataI, ordersDataRI);				\
 		Meta::meta::compiler.print("Created functions data.");												\
 																											\
 		->fragment {																						\
@@ -97,7 +97,7 @@ consteval {																			\
 consteval {																						\
 	constexpr auto ordersDataRI = Meta::CreateOrdersData<^ ON>();								\
 	constexpr auto paramsData = Meta::CreateParamsData<^ FN, ordersDataRI.imag>();				\
-	constexpr auto funcsDataRI = Meta::CreateFuncsData<^ FN>(paramsData, ordersDataRI.imag);	\
+	constexpr auto funcsDataRI = Meta::CreateFuncsData<^ FN>(paramsData, ordersDataRI);			\
 	Meta::meta::compiler.print("Created functions data.");										\
 																								\
 	Meta::CallFuncs<funcsDataRI.imag,															\
