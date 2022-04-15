@@ -1,0 +1,5 @@
+#pragma once
+#include <array>
+
+inline constexpr std::array<int, 9> precomputed_fidxs_ON_FN{ 0, 1, 2, 5, 6, 8, 7, 3, 4 };
+inline constexpr std::array<int, 9> random_fidxs_ON_FN{ 4, 0, 3, 1, 5, 7, 6, 2, 8 };

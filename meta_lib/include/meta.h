@@ -1,0 +1,151 @@
+#pragma once
+#include "optimizer/SimulatedAnnealing_Implementation1.h"
+#include "3_Functions.h"
+
+#if defined(META_PRECOMPUTE)
+#include "misc/print.h"
+
+#include <array>
+#include <iostream>
+#include <strstream>
+#include <algorithm>
+#else
+#include "4_Arguments.h"
+#include "5_Calls.h"
+#endif // defined(META_PRECOMPUTE)
+
+#include <fstream>
+#include <filesystem>
+#include <experimental/meta>
+#include <experimental/compiler>
+
+namespace Meta
+{
+namespace std = ::std;
+namespace meta = std::experimental::meta;
+
+
+// Main switch
+// Selects whether to precompute function indexes and write to header file or create function arguments.
+// This macro should be called alone in a header file. Include the header in the main project and in the precompute project.
+// In this way the precompute project won't compile unnecessary source files from the main project.
+#if defined(META_PRECOMPUTE)
+#define META_PRECOMPUTE_OR_CREATE_ARGUMENTS(order_namespace, function_namespace) META_PRECOMPUTE_FUNC_IDXS(order_namespace, function_namespace)
+#define META_INCLUDE_IDXS_HEADER(PATH, ON, FN) "misc/empty.h"
+#else
+#define META_PRECOMPUTE_OR_CREATE_ARGUMENTS(order_namespace, function_namespace) META_CREATE_ARGUMENTS(order_namespace, function_namespace)
+#define META_INCLUDE_IDXS_HEADER(PATH, ON, FN) META_STRINGIFY(PATH/META_PRECOMPUTE_HEADER(ON, FN))
+#endif // defined(META_PRECOMPUTE)
+
+
+// Strings and identifiers
+#if !defined(META_PRECOMPUTE_HEADER_DIRECTORY)
+#define META_PRECOMPUTE_HEADER_DIRECTORY ""
+#endif
+
+#define META_PRECOMPUTE_HEADER(ON, FN) PrecomputedFuncIndxs_##ON##_##FN
+#define META_PRECOMPUTE_HEADER_FILENAME(ON, FN) META_PRECOMPUTE_HEADER_DIRECTORY META_STRINGIFY(META_PRECOMPUTE_HEADER(ON, FN))
+#define META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN) precomputed_fidxs_##ON_##FN
+
+// Scans functions and runs simulated annealing over them to determine the best ordering. Writes indexes to header file.
+#define META_PRECOMPUTE_FUNC_IDXS(ON, FN)																	\
+inline int MetaOptimToFileHeaderFunc ## ON ## FN () {														\
+	consteval {																								\
+		constexpr auto ordersDataRI = Meta::CreateOrdersData<^ ON>();										\
+		constexpr auto paramsDataI = Meta::CreateParamsData<^ FN, ordersDataRI.imag>();						\
+		constexpr auto funcsDataRI = Meta::CreateFuncsData<^ FN>(paramsDataI, ordersDataRI.imag);			\
+		Meta::meta::compiler.print("Created functions data.");												\
+																											\
+		->fragment {																						\
+			using FuncsDataRealType [[maybe_unused]] = decltype(%{ funcsDataRI.real });						\
+			using OrdersDataRealType [[maybe_unused]] = decltype(%{ ordersDataRI.real });					\
+			constexpr auto ordersDataReal = %{ ordersDataRI.real };											\
+			constexpr auto funcsDataReal = %{ funcsDataRI.real };											\
+																											\
+			std::pair input{ ordersDataReal, funcsDataReal };												\
+			auto newFuncsDataReal = Meta::SimulatedAnnealing<												\
+				Meta::SAFunctionOrderSettings<FuncsDataRealType, OrdersDataRealType>						\
+			>(input);																						\
+																											\
+			WriteIdxsToFile(newFuncsDataReal,																\
+							META_PRECOMPUTE_HEADER_FILENAME(ON, FN),										\
+							META_STRINGIFY(META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN))					\
+							);																				\
+		};																									\
+	}																										\
+	return 0;																								\
+}																											\
+																											\
+namespace Meta																								\
+{																											\
+inline int MetaOptimCleanFile ## ON ## FN = DeleteIdxHeaderFile(META_PRECOMPUTE_HEADER_FILENAME(ON, FN));	\
+inline int MetaOptimToFile ## ON ## FN = MetaOptimToFileHeaderFunc ## ON ## FN ();							\
+}
+// END #define META_PRECOMPUTE_FUNC_IDXS(ON, FN)	
+
+
+// Creates variables in the global namespace to be used as function arguments
+#define META_CREATE_ARGUMENTS(ON, FN)												\
+consteval {																			\
+	constexpr auto ordersDataRI = Meta::CreateOrdersData<^ ON>(false);				\
+	constexpr auto paramsDataI = Meta::CreateParamsData<^ FN, ordersDataRI.imag>();	\
+	Meta::CreateArguments<paramsDataI>();											\
+}
+// END #define META_CREATE_ARGUMENTS(ON, FN)
+
+#define META_CALL_FUNCTIONS_OPTIMIZED(ON, FN)													\
+consteval {																						\
+	constexpr auto ordersDataRI = Meta::CreateOrdersData<^ ON>();								\
+	constexpr auto paramsData = Meta::CreateParamsData<^ FN, ordersDataRI.imag>();				\
+	constexpr auto funcsDataRI = Meta::CreateFuncsData<^ FN>(paramsData, ordersDataRI.imag);	\
+	Meta::meta::compiler.print("Created functions data.");										\
+																								\
+	Meta::CallFuncs<funcsDataRI.imag,															\
+					funcsDataRI.real.funcs,														\
+					META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN)>();							\
+																								\
+	Meta::meta::compiler.print("Listing function calls in optimized order from ehader file:");	\
+	for (int i = 0; i < funcsDataRI.real.funcs.size(); ++i)										\
+		Meta::meta::compiler.print(Meta::meta::name_of(Meta::meta::type_of(						\
+			funcsDataRI.imag.metas[META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN)[i]]			\
+		)));																					\
+}
+// END #define META_CALL_FUNCTIONS_OPTIMIZED(ON, FN)
+
+#if defined(META_PRECOMPUTE)
+inline int DeleteIdxHeaderFile(const char* headerFilename) {
+	bool exists = std::filesystem::exists(headerFilename);
+	if (exists)
+		std::filesystem::remove(headerFilename);
+	return 0;
+}
+
+inline void WriteIdxsToFile(const auto& newFuncsDataReal, const char* headerFilename, const char* precFuncIdxArrName) {
+	bool headerExists = std::filesystem::exists(headerFilename);
+	if (headerExists) {
+		std::cout << "Creating the same precomputed function indexes header file twice. "
+					 "Use in only one translation unit.\n";
+		std::abort();
+	}
+
+	std::ofstream f(headerFilename);
+	if (!f.is_open()) {
+		std::cout << "Failed to create precomputed indexes function header file.\n";
+		std::abort();
+	}
+
+	f << "#pragma once\n" << "#include <array>\n\n";
+	f << std::format("inline constexpr std::array<int, {0}> {1}{{ {2} }};\n", newFuncsDataReal.count, precFuncIdxArrName, ContainerFormatAdapter{ newFuncsDataReal.funcs, AdaptType<functionGetID>() });
+
+	f.close();
+}
+#endif // defined(META_PRECOMPUTE)
+
+#define META_STRINGIFY_IMPL(X) #X
+#define META_STRINGIFY(X) META_STRINGIFY_IMPL(X)
+
+#define META_CONCAT_IMPL(X, Y) X##Y
+#define META_CONCAT(X, Y) META_CONCAT_IMPL(X, Y)
+
+
+} // namespace Meta
