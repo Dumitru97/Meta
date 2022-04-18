@@ -1,5 +1,7 @@
 ﻿cmake_minimum_required (VERSION 3.19)
 
+project(meta_gen_test)
+
 set(header_files "Actors.h"
 				 "DefaultCallOrder.h"
 				 "Includes.h"

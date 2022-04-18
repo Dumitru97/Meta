@@ -121,6 +121,13 @@ inline int DeleteIdxHeaderFile(const char* headerFilename) {
 }
 
 inline void WriteIdxsToFile(const auto& newFuncsDataReal, const char* headerFilename, const char* precFuncIdxArrName) {
+	std::string_view headerPath = headerFilename;
+	auto slashPos = headerPath.rfind('/');
+	if (slashPos != std::string_view::npos) {
+		std::string_view dirs = headerPath.substr(0, slashPos);
+		std::filesystem::create_directories(dirs);
+	}
+
 	bool headerExists = std::filesystem::exists(headerFilename);
 	if (headerExists) {
 		std::cout << "Creating the same precomputed function indexes header file twice. "
