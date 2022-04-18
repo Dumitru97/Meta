@@ -1,6 +1,8 @@
-.vs
-libs/
-meta_test/include/generated/
+/.vs/
+/libs/
+/meta_test/include/generated/
+/meta_test/include/simulation/
+/out/
 
 # Prerequisites
 *.d

@@ -104,7 +104,7 @@ consteval {																						\
 					funcsDataRI.real.funcs,														\
 					META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN)>();							\
 																								\
-	Meta::meta::compiler.print("Listing function calls in optimized order from ehader file:");	\
+	Meta::meta::compiler.print("Listing function calls in optimized order from header file:");	\
 	for (int i = 0; i < funcsDataRI.real.funcs.size(); ++i)										\
 		Meta::meta::compiler.print(Meta::meta::name_of(Meta::meta::type_of(						\
 			funcsDataRI.imag.metas[META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN)[i]]			\

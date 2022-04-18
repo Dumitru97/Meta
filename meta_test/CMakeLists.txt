@@ -11,11 +11,17 @@ if (CMAKE_GENERATOR MATCHES "Visual Studio")
 	set_target_properties(meta_test PROPERTIES VS_GLOBAL_LLVMInstallDir "C:/LLVM")
 	set_target_properties(meta_test_precompute PROPERTIES VS_GLOBAL_LLVMInstallDir "C:/LLVM")
 
-	set(compiler_flags "SHELL:-Xclang -std=c++20" "SHELL:-Xclang -freflection" -mavx2 "SHELL:-Xclang -Wno-deprecated-enum-enum-conversion" -mavx2) #-mavx2 -Xclang -O3
+	set(compiler_flags	"SHELL:-Xclang -std=c++20"
+						"SHELL:-Xclang -freflection"
+						-mavx2
+						"SHELL:-Xclang -fconstexpr-steps"
+						"SHELL:-Xclang 1000000000"
+						"SHELL:-Xclang -Wno-deprecated-enum-enum-conversion"
+	) #-mavx2 -Xclang -O3
 else()
 	set_target_properties(meta_test PROPERTIES CXX_STANDARD 20)
 	set_target_properties(meta_test_precompute PROPERTIES CXX_STANDARD 20)
-	set(compiler_flags -std=c++20 -freflection -mavx2 -Wno-deprecated-enum-enum-conversion ) #-mavx2 -Xclang -O3
+	set(compiler_flags -std=c++20 -freflection -mavx2 -fconstexpr-steps 1000000000 -Wno-deprecated-enum-enum-conversion ) #-mavx2 -Xclang -O3
 endif()
 
 target_compile_options(meta_test PRIVATE ${compiler_flags})
