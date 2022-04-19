@@ -82,6 +82,11 @@ void InitObjectVec(Objects& vec, int len) {
 
 
 		str += R"(void InitVariables(int acts_, int objs_) {
+	for (int i = 0; i < (int)world_height; ++i)
+		for (int j = 0; j < (int)world_width; ++j)
+			world_mat[i][j] = {};
+
+	gen.seed(var_init_seed);
 	acts = acts_;
 	objs = objs_;
 	int len = 0;

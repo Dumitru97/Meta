@@ -9,14 +9,14 @@
 
 namespace Meta
 {
-	inline constexpr int sa_func_reps = 3000;
-	inline constexpr float sa_func_temp = 25;
-	inline constexpr int sa_func_reps_increment = 5;
-	inline constexpr float sa_func_temp_decrement = 0.05f;
-	inline constexpr float sa_func_pow_mult = 20;
+	extern const int sa_func_reps;
+	extern const float sa_func_temp;
+	extern const int sa_func_reps_increment;
+	extern const float sa_func_temp_decrement;
+	extern const float sa_func_pow_mult;
 
-	template<typename FuncsDataRealTypeIn, typename OrderDataRealTypeIn>
-	struct SAFunctionOrderSettings : public SimulatedAnnealingSettings<SAFunctionOrderSettings<FuncsDataRealTypeIn, OrderDataRealTypeIn>>
+	template<typename FuncsDataRealTypeIn, typename OrderDataRealTypeIn, typename FuncsCmpSwapMatsTypeIn>
+	struct SAFunctionOrderSettings : public SimulatedAnnealingSettings<SAFunctionOrderSettings<FuncsDataRealTypeIn, OrderDataRealTypeIn, FuncsCmpSwapMatsTypeIn>>
 	{
 		// Structs and typedefs
 	public:
@@ -31,6 +31,7 @@ namespace Meta
 
 		using FuncsDataType = std::remove_cvref_t<FuncsDataRealTypeIn>;
 		using OrderDataType = std::remove_cvref_t<OrderDataRealTypeIn>;
+		using FuncsCmpSwapMatsType = std::remove_cvref_t<FuncsCmpSwapMatsTypeIn>;
 		using UnusedType = int;
 
 #define fdata funcsData
@@ -41,10 +42,11 @@ namespace Meta
 	public:
 		OrderDataType ordersData;
 		FuncsDataType funcsData;
+		const FuncsCmpSwapMatsType* funcsCmpSwapMats;
 		static constexpr int funcCount = FuncsDataType::count;
 
-#define fswap_mat funcsData.fswap_mat
-#define fcmp_mat  funcsData.fcmp_mat
+#define fswap_mat funcsCmpSwapMats->fswap_mat
+#define fcmp_mat  funcsCmpSwapMats->fcmp_mat
 
 		// Holds for every function all the functions that it can be swapped with. Used in NeighbourDelta().
 		std::array<std::array<int, funcCount + 2 - 1>, funcCount> delta_swap_mat{};	// +2(func id and row size) -1(excluding self swapping)
@@ -57,10 +59,11 @@ namespace Meta
 
 		//Member functions for the CRTP interface
 	public:
-		UnusedType TransformInput(const auto& ord_funcs_pair) {
+		UnusedType TransformInput(const auto& ord_funcs_mat_tuple) {
 			// Copy into member variables
-			ordersData = ord_funcs_pair.first;
-			funcsData = ord_funcs_pair.second;
+			ordersData = std::get<0>(ord_funcs_mat_tuple);
+			funcsData = std::get<1>(ord_funcs_mat_tuple);
+			funcsCmpSwapMats = &std::get<2>(ord_funcs_mat_tuple);
 
 			// Sort parameters for Jaccard index calculation
 			for (int i = 0; i < funcCount; ++i) {

@@ -1,9 +1,7 @@
 #pragma once
 #include <random>
-#if !defined(NDEBUG)
 #include <iostream>
 #include <format>
-#endif
 
 namespace Meta
 {
@@ -113,9 +111,9 @@ namespace Meta
 				break;
 		}
 
-#if !defined(NDEBUG)
+		auto cost2 = set.Cost(sol);
+		std::cout << "New Cost: " << cost2 << "\n";
 		std::cout << std::format("SimulatedAnnealing - Initial cost: {}, New cost: {}, Diff: {}\n", initcost, cost, initcost - cost);
-#endif
 
 		return set.TransformOutput(sol);
 	}

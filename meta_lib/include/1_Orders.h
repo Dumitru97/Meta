@@ -129,8 +129,8 @@ namespace Meta
 		}
 	}
 
-	template<auto orderNamespaceMeta>
-	consteval auto CreateOrdersData(bool computeSwap = true) {
+	template<auto orderNamespaceMeta, bool computeSwap = true>
+	consteval auto CreateOrdersData() {
 		// Order symbols are stored in struct/class names
 		// Count all struct/class declarations in namespace
 		constexpr auto orderMetaRange = meta::members_of(orderNamespaceMeta, meta::is_class);
@@ -171,7 +171,7 @@ namespace Meta
 			++i;
 		}
 
-		if (computeSwap)
+		if constexpr (computeSwap)
 			ComputeOrdersCmp(ordersReal);
 
 		return OrdersDataRI<decltype(ordersReal), decltype(ordersImag)>{ ordersReal, ordersImag };

@@ -46,9 +46,6 @@ namespace Meta
 		std::array<int, paramIdxsStorageSize_> paramIdxsStorage; //el11 ... el21 ...  ....
 		std::array<function, funcCount> funcs{};
 
-		std::array<std::array<bool, funcCount>, funcCount> fswap_mat{};
-		std::array<std::array<bool, funcCount>, funcCount> fcmp_mat{};  // <
-
 		inline static constexpr int count = funcCount;
 		inline static constexpr int paramIdxsStorageSize = paramIdxsStorageSize_;
 
@@ -108,8 +105,14 @@ namespace Meta
 		T2 imag;
 	};
 
+	template<size_t funcCount>
+	struct FuncsCmpSwapMats {
+		std::array<std::array<bool, funcCount>, funcCount> fswap_mat{};
+		std::array<std::array<bool, funcCount>, funcCount> fcmp_mat{};  // <
+	};
+
 	// Returns {f1 < f2, f2 < f1}
-	constexpr std::pair<bool, bool> FuncOrdersCmp(const auto& funcsDataReal, const auto& ordersDataReal, const int fidx1, const int fidx2) {
+	constexpr std::pair<bool, bool> FuncOrdersCmp(const auto& ordersDataReal, const auto& funcsDataReal, const int fidx1, const int fidx2) {
 		if (fidx1 == fidx2)
 			return { true, true };
 
@@ -152,6 +155,23 @@ namespace Meta
 			throw;
 
 		return { smaller1, smaller2 };
+	}
+
+	auto CreateFuncsCmpSwapMats(const auto& ordersDataReal, const auto& funcsDataReal) {
+		constexpr auto funcCount = funcsDataReal.count;
+		FuncsCmpSwapMats<funcCount> funcsCmpSwapMats;
+
+		// Compute fcmp_mat and fswap_mat
+		for (int i = 0; i < funcCount; ++i)
+			for (int j = i; j < funcCount; ++j) {
+				const std::pair<bool, bool> cmp = FuncOrdersCmp(ordersDataReal, funcsDataReal, i, j);
+				funcsCmpSwapMats.fcmp_mat[i][j] = cmp.first;
+				funcsCmpSwapMats.fcmp_mat[j][i] = cmp.second;
+				funcsCmpSwapMats.fswap_mat[i][j] = cmp.first && cmp.second;
+				funcsCmpSwapMats.fswap_mat[j][i] = cmp.first && cmp.second;
+			}
+
+		return funcsCmpSwapMats;
 	}
 
 	template<auto namespaceMeta>
@@ -213,16 +233,6 @@ namespace Meta
 
 			++i;
 		}
-
-		// Compute fcmp_mat and fswap_mat
-		for (int i = 0; i < funcCount; ++i)
-			for (int j = i; j < funcCount; ++j) {
-				const std::pair<bool, bool> cmp = FuncOrdersCmp(funcsDataReal, ordersDataRI.real, i, j);
-				funcsDataReal.fcmp_mat[i][j] = cmp.first;
-				funcsDataReal.fcmp_mat[j][i] = cmp.second;
-				funcsDataReal.fswap_mat[i][j] = cmp.first && cmp.second;
-				funcsDataReal.fswap_mat[j][i] = cmp.first && cmp.second;
-			}
 
 		return FuncsDataRI<decltype(funcsDataReal), decltype(funcsDataImag)>{ funcsDataReal, funcsDataImag };
 	}

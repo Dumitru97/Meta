@@ -22,17 +22,29 @@
 #define TEST_VAR_SEED 777
 #endif
 
+constexpr bool console_input =
 #if defined(CONSOLE_INPUT)
-constexpr bool console_input = true;
+true;
 #else
-constexpr bool console_input = false;
+false;
 #endif
 
 //#define FORCE_INLINE
 //#define FORCE_NOINLINE
 
-constexpr bool print_acts_objs_len = true;
-constexpr bool print_function_name = true;
+constexpr bool print_acts_objs_len =
+#if defined(PRINT_ACTS_OBJS_LENS)
+true;
+#else
+false;
+#endif
+
+constexpr bool print_function_name =
+#if defined(PRINT_FUNCS)
+true;
+#else
+false;
+#endif
 
 inline int rand_int(int min, int max);
 inline float rand_float(float min, float max);
@@ -89,9 +101,11 @@ inline float gen_act_y_adv() {
 	return rand_sign() * rand_float(min_act_y_adv, max_act_y_adv);
 }
 
-inline std::vector<std::vector<int>> obj_act_asoc_mat(obj_num);
+inline std::vector<std::vector<int>> obj_act_asoc_mat;
 
 inline void INIT_OBJ_ACT_ASOC_MAT() {
+	obj_act_asoc_mat.resize(obj_num);
+
 	for (int k = 0; k < obj_num; ++k) {
 		std::vector<int>& obj_k_act_asoc = obj_act_asoc_mat[k];
 		obj_k_act_asoc.resize(actor_num);
