@@ -48,39 +48,43 @@ namespace meta = std::experimental::meta;
 #define META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN) precomputed_fidxs_##ON_##FN
 
 // Scans functions and runs simulated annealing over them to determine the best ordering. Writes indexes to header file.
-#define META_PRECOMPUTE_FUNC_IDXS(ON, FN)																		\
-inline int MetaOptimToFileHeaderFunc ## ON ## FN () {															\
-	consteval {																									\
-		constexpr auto ordersDataRI = Meta::CreateOrdersData<^ ON>();											\
-		constexpr auto paramsDataI = Meta::CreateParamsData<^ FN, ordersDataRI.imag>();							\
-		constexpr auto funcsDataRI = Meta::CreateFuncsData<^ FN>(paramsDataI, ordersDataRI);					\
-		Meta::meta::compiler.print("Created functions data.");													\
-																												\
-		->fragment {																							\
-			using FuncsDataRealType [[maybe_unused]] = decltype(%{ funcsDataRI.real });							\
-			using OrdersDataRealType [[maybe_unused]] = decltype(%{ ordersDataRI.real });						\
-			constexpr auto ordersDataReal = %{ ordersDataRI.real };												\
-			constexpr auto funcsDataReal = %{ funcsDataRI.real };												\
-			auto funcsCmpSwapMats = CreateFuncsCmpSwapMats(ordersDataReal, funcsDataReal);						\
-																												\
-			std::tuple input{ ordersDataReal, funcsDataReal, funcsCmpSwapMats };								\
-			auto newFuncsDataReal = Meta::SimulatedAnnealing<													\
-				Meta::SAFunctionOrderSettings<FuncsDataRealType, OrdersDataRealType, decltype(funcsCmpSwapMats)>\
-			>(input);																							\
-																												\
-			WriteIdxsToFile(newFuncsDataReal,																	\
-							META_PRECOMPUTE_HEADER_FILENAME(ON, FN),											\
-							META_STRINGIFY(META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN))						\
-							);																					\
-		};																										\
-	}																											\
-	return 0;																									\
-}																												\
-																												\
-namespace Meta																									\
-{																												\
-inline int MetaOptimCleanFile ## ON ## FN = DeleteIdxHeaderFile(META_PRECOMPUTE_HEADER_FILENAME(ON, FN));		\
-inline int MetaOptimToFile ## ON ## FN = MetaOptimToFileHeaderFunc ## ON ## FN ();								\
+#define META_PRECOMPUTE_FUNC_IDXS(ON, FN)																	\
+inline int MetaOptimToFileHeaderFunc ## ON ## FN () {														\
+	consteval {																								\
+		constexpr auto ordersDataRI = Meta::CreateOrdersData<^ ON>();										\
+		Meta::meta::compiler.print("Created orders data.");													\
+		constexpr auto paramsDataI = Meta::CreateParamsData<^ FN, ordersDataRI.imag>();						\
+		Meta::meta::compiler.print("Created params data.");													\
+		constexpr auto funcsDataRI = Meta::CreateFuncsData<^ FN>(paramsDataI, ordersDataRI);				\
+		Meta::meta::compiler.print("Created functions data.");												\
+																											\
+		->fragment {																						\
+			using OrdersDataRealType [[maybe_unused]] = decltype(%{ ordersDataRI.real });					\
+			using FuncsDataRealType [[maybe_unused]] = decltype(%{ funcsDataRI.real });						\
+			constexpr auto ordersDataReal = %{ ordersDataRI.real };											\
+			constexpr auto funcsDataReal = %{ funcsDataRI.real };											\
+			auto ordersCmpSwapMats = CreateOrdersCmpSwapMats(ordersDataReal);								\
+			auto funcsCmpSwapMats = CreateFuncsCmpSwapMats(ordersCmpSwapMats, funcsDataReal);				\
+																											\
+			std::tuple input{ ordersDataReal, funcsDataReal, ordersCmpSwapMats, funcsCmpSwapMats };			\
+			auto newFuncsDataReal = Meta::SimulatedAnnealing<												\
+				Meta::SAFunctionOrderSettings<OrdersDataRealType, FuncsDataRealType,						\
+											  decltype(ordersCmpSwapMats), decltype(funcsCmpSwapMats)>		\
+			>(input);																						\
+																											\
+			WriteIdxsToFile(newFuncsDataReal,																\
+							META_PRECOMPUTE_HEADER_FILENAME(ON, FN),										\
+							META_STRINGIFY(META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN))					\
+							);																				\
+		};																									\
+	}																										\
+	return 0;																								\
+}																											\
+																											\
+namespace Meta																								\
+{																											\
+inline int MetaOptimCleanFile ## ON ## FN = DeleteIdxHeaderFile(META_PRECOMPUTE_HEADER_FILENAME(ON, FN));	\
+inline int MetaOptimToFile ## ON ## FN = MetaOptimToFileHeaderFunc ## ON ## FN ();							\
 }
 // END #define META_PRECOMPUTE_FUNC_IDXS(ON, FN)	
 
@@ -88,7 +92,7 @@ inline int MetaOptimToFile ## ON ## FN = MetaOptimToFileHeaderFunc ## ON ## FN (
 // Creates variables in the global namespace to be used as function arguments
 #define META_CREATE_ARGUMENTS(ON, FN)												\
 consteval {																			\
-	constexpr auto ordersDataRI = Meta::CreateOrdersData<^ ON, false>();			\
+	constexpr auto ordersDataRI = Meta::CreateOrdersData<^ ON>();			\
 	constexpr auto paramsDataI = Meta::CreateParamsData<^ FN, ordersDataRI.imag>();	\
 	Meta::CreateArguments<paramsDataI>();											\
 }
@@ -96,7 +100,7 @@ consteval {																			\
 
 #define META_CALL_FUNCTIONS_OPTIMIZED(ON, FN)													\
 consteval {																						\
-	constexpr auto ordersDataRI = Meta::CreateOrdersData<^ ON, false>();						\
+	constexpr auto ordersDataRI = Meta::CreateOrdersData<^ ON>();								\
 	constexpr auto paramsData = Meta::CreateParamsData<^ FN, ordersDataRI.imag>();				\
 	constexpr auto funcsDataRI = Meta::CreateFuncsData<^ FN>(paramsData, ordersDataRI);			\
 	Meta::meta::compiler.print("Created functions data.");										\

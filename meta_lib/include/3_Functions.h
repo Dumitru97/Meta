@@ -107,12 +107,12 @@ namespace Meta
 
 	template<size_t funcCount>
 	struct FuncsCmpSwapMats {
-		std::array<std::array<bool, funcCount>, funcCount> fswap_mat{};
-		std::array<std::array<bool, funcCount>, funcCount> fcmp_mat{};  // <
+		std::array<std::array<bool, funcCount>, funcCount> swap{};
+		std::array<std::array<bool, funcCount>, funcCount> cmp{};  // <
 	};
 
 	// Returns {f1 < f2, f2 < f1}
-	constexpr std::pair<bool, bool> FuncOrdersCmp(const auto& ordersDataReal, const auto& funcsDataReal, const int fidx1, const int fidx2) {
+	std::pair<bool, bool> FuncOrdersCmp(const auto& ordersCmpSwapMats, const auto& funcsDataReal, const int fidx1, const int fidx2) {
 		if (fidx1 == fidx2)
 			return { true, true };
 
@@ -134,7 +134,7 @@ namespace Meta
 		bool smaller1 = true;
 		for (int i = 0; i < fords1.len; ++i)
 			for (int j = 0; j < fords2.len; ++j)
-				if (!ordersDataReal.cmp_mat[fords1[i]][fords2[j]]) {
+				if (!ordersCmpSwapMats.cmp[fords1[i]][fords2[j]]) {
 					smaller1 = false;
 					j = fords2.len;
 					i = fords1.len;
@@ -143,7 +143,7 @@ namespace Meta
 		bool smaller2 = true;
 		for (int i = 0; i < fords2.len; ++i)
 			for (int j = 0; j < fords1.len; ++j)
-				if (!ordersDataReal.cmp_mat[fords2[i]][fords1[j]]) {
+				if (!ordersCmpSwapMats.cmp[fords2[i]][fords1[j]]) {
 					smaller2 = false;
 					j = fords1.len;
 					i = fords2.len;
@@ -157,18 +157,18 @@ namespace Meta
 		return { smaller1, smaller2 };
 	}
 
-	auto CreateFuncsCmpSwapMats(const auto& ordersDataReal, const auto& funcsDataReal) {
+	auto CreateFuncsCmpSwapMats(const auto& ordersCmpSwapMats, const auto& funcsDataReal) {
 		constexpr auto funcCount = funcsDataReal.count;
 		FuncsCmpSwapMats<funcCount> funcsCmpSwapMats;
 
-		// Compute fcmp_mat and fswap_mat
+		// Compute cmp and swap matrices
 		for (int i = 0; i < funcCount; ++i)
 			for (int j = i; j < funcCount; ++j) {
-				const std::pair<bool, bool> cmp = FuncOrdersCmp(ordersDataReal, funcsDataReal, i, j);
-				funcsCmpSwapMats.fcmp_mat[i][j] = cmp.first;
-				funcsCmpSwapMats.fcmp_mat[j][i] = cmp.second;
-				funcsCmpSwapMats.fswap_mat[i][j] = cmp.first && cmp.second;
-				funcsCmpSwapMats.fswap_mat[j][i] = cmp.first && cmp.second;
+				const std::pair<bool, bool> cmp = FuncOrdersCmp(ordersCmpSwapMats, funcsDataReal, i, j);
+				funcsCmpSwapMats.cmp[i][j] = cmp.first;
+				funcsCmpSwapMats.cmp[j][i] = cmp.second;
+				funcsCmpSwapMats.swap[i][j] = cmp.first && cmp.second;
+				funcsCmpSwapMats.swap[j][i] = cmp.first && cmp.second;
 			}
 
 		return funcsCmpSwapMats;

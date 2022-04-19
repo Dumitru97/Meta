@@ -9,8 +9,6 @@ namespace Meta
 	struct OrdersDataReal {
 		using order_t = int;
 
-		std::array<std::array<bool, orderCount>, orderCount> swap_mat{};
-		std::array<std::array<int, orderCount>, orderCount> cmp_mat{};// < 
 		std::array<order_t, rulesStorageSize> rule_storage{}; //sz1 el11... sz2 el21...  ....
 		std::array<int, orderCount> rules{};
 
@@ -50,6 +48,11 @@ namespace Meta
 		T2 imag;
 	};
 
+	template<size_t orderCount>
+	struct OrdersCmpSwapMats {
+		std::array<std::array<bool, orderCount>, orderCount> swap{};
+		std::array<std::array<int, orderCount>, orderCount> cmp{};// < 
+	};
 
 	template<auto namespaceMeta>
 	consteval size_t CalcOrderRulesStorageSize() {
@@ -61,7 +64,7 @@ namespace Meta
 	}
 
 	//returns e1 < e2, e2 < e1
-	constexpr std::pair<char, char> OrdersCmp(const auto& expanded_bases, int primary, int secondary) {
+	std::pair<char, char> OrdersCmp(const auto& expanded_bases, int primary, int secondary) {
 		if (primary == secondary)
 			return { 3, 3 };
 
@@ -82,24 +85,24 @@ namespace Meta
 		return { 1, 1 };
 	}
 
-	constexpr bool And(const std::pair<char, char>& pair) {
+	bool And(const std::pair<char, char>& pair) {
 		return pair.first && pair.second;
 	}
 
 	// Add all bases recursively
-	constexpr void AddBasesFrom(const auto& orders, auto& vec, int idx) {
+	void AddBasesFrom(const auto& ordersReal, auto& vec, int idx) {
 		// For each base/rule add their bases/rules
-		for (int i = 0; i < orders.rule_size(idx); ++i) {
-			const int base_idx = orders.rule_data(idx, i);
+		for (int i = 0; i < ordersReal.rule_size(idx); ++i) {
+			const int base_idx = ordersReal.rule_data(idx, i);
 
 			vec.push_back(base_idx); // Add current
-			AddBasesFrom(orders, vec, base_idx); // Add subrules
+			AddBasesFrom(ordersReal, vec, base_idx); // Add subrules
 		}
 	}
 
-	constexpr void ComputeOrdersCmp(auto& orders) {
-		using order_t = typename std::remove_cvref_t<decltype(orders)>::order_t;
-		constexpr const int orderCount = orders.count;
+	void ComputeOrdersCmp(auto& ordersCmpSwapMats, const auto& ordersReal) {
+		using order_t = typename std::remove_cvref_t<decltype(ordersReal)>::order_t;
+		constexpr const int orderCount = ordersReal.count;
 
 		using expanded_bases_t = std::array<std::vector<order_t>, orderCount>; //O(N^2)
 		expanded_bases_t expanded_bases;
@@ -107,29 +110,38 @@ namespace Meta
 		// Store rules in a flat vector instead of tree
 		for (int i = 0; i < orderCount; ++i) {
 			expanded_bases[i].push_back(i);
-			AddBasesFrom(orders, expanded_bases[i], i);
+			AddBasesFrom(ordersReal, expanded_bases[i], i);
 		}
 
-		// Compute cmp_mat and swap_mat
+		// Compute cmp and swap matrices
 		for (int i = 0; i < orderCount; ++i) {
 			for (int j = 0; j < i; ++j) {
 				const auto& cmp_pair = OrdersCmp(expanded_bases, i, j);
-				orders.swap_mat[i][j] = And(cmp_pair); // i < j && j < i aka canSwap?
-				orders.cmp_mat[i][j] = cmp_pair.first; // if i < j
+				ordersCmpSwapMats.swap[i][j] = And(cmp_pair); // i < j && j < i aka canSwap?
+				ordersCmpSwapMats.cmp[i][j] = cmp_pair.first; // if i < j
 			}
 
-			orders.swap_mat[i][i] = 1; // i < i
-			orders.cmp_mat[i][i] = 3; // ==
+			ordersCmpSwapMats.swap[i][i] = 1; // i < i
+			ordersCmpSwapMats.cmp[i][i] = 3; // ==
 
 			for (int j = i + 1; j < orderCount; ++j) {
 				const auto& cmp_pair = OrdersCmp(expanded_bases, i, j);
-				orders.swap_mat[i][j] = And(cmp_pair);
-				orders.cmp_mat[i][j] = 1; //because i was declared before j
+				ordersCmpSwapMats.swap[i][j] = And(cmp_pair);
+				ordersCmpSwapMats.cmp[i][j] = 1; //because i was declared before j
 			}
 		}
 	}
 
-	template<auto orderNamespaceMeta, bool computeSwap = true>
+	auto CreateOrdersCmpSwapMats(const auto& ordersReal) {
+		constexpr const int orderCount = ordersReal.count;
+
+		OrdersCmpSwapMats<orderCount> ordersCmpSwapMats;
+		ComputeOrdersCmp(ordersCmpSwapMats, ordersReal);
+
+		return ordersCmpSwapMats;
+	}
+
+	template<auto orderNamespaceMeta>
 	consteval auto CreateOrdersData() {
 		// Order symbols are stored in struct/class names
 		// Count all struct/class declarations in namespace
@@ -170,9 +182,6 @@ namespace Meta
 
 			++i;
 		}
-
-		if constexpr (computeSwap)
-			ComputeOrdersCmp(ordersReal);
 
 		return OrdersDataRI<decltype(ordersReal), decltype(ordersImag)>{ ordersReal, ordersImag };
 	}
