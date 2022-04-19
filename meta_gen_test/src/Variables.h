@@ -132,11 +132,11 @@ R"(
 		std::string str;
 
 #if defined(FORCE_INLINE)
-		str += "#define INLINE __attribute__((__always_inline__))" nl2;
+		str += "#define TEST_INLINE __attribute__((__always_inline__))" nl2;
 #elif defined(FORCE_NOINLINE)
-		str += "#define INLINE __attribute__((noinline))" nl2;
+		str += "#define TEST_INLINE __attribute__((noinline))" nl2;
 #else
-		str += "#define INLINE " nl2;
+		str += "#define TEST_INLINE " nl2;
 #endif
 
 		str += std::format(

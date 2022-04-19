@@ -12,7 +12,7 @@ namespace Actors {
 
 		// Constructing format
 		std::string fmt =
-"INLINE void Actors{0}Update(Actors{0}&acts{0}, OActor{0}Update) {{" nl;
+"TEST_INLINE void Actors{0}Update(Actors{0}&acts{0}, OActor{0}Update) {{" nl;
 		if(print_function_name)
 			fmt += tab R"(std::cout << __PRETTY_FUNCTION__ << "\n";)" nl2;
 

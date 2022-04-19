@@ -2,6 +2,7 @@
 
 #include "misc/meta_utils.h"
 #include <vector>
+#include <algorithm>
 
 namespace Meta
 {
@@ -36,9 +37,18 @@ namespace Meta
 		}
 	};
 
+	struct OrdersNameID{
+		const char* name;
+		int ID;
+
+		static constexpr bool name_cmp(const OrdersNameID& lsh, const OrdersNameID& rsh) {
+			return const_strcmp(lsh.name, rsh.name) < 0;
+		}
+	};
+
 	template<size_t orderCount>
 	struct OrdersDataImag {
-		std::array<meta::info, orderCount> metas{};
+		std::array<meta::info  , orderCount> metas{};
 		static constexpr int count = orderCount;
 	};
 
@@ -155,35 +165,49 @@ namespace Meta
 
 		OrdersDataReal<orderCount, ordersStorageSize> ordersReal{};
 		OrdersDataImag<orderCount> ordersImag{};
+		std::array<OrdersNameID, orderCount> nameID{};
 
-		int idx = 0; // Index in rule_storage
-		for (int i = 0; meta::info orderMeta : orderMetaRange) {
-			ordersImag.metas[i] = orderMeta;
-			ordersReal.rules[i] = idx; // Index in rule_storage
-			ordersReal.rule_storage[idx] = size(meta::base_spec_range(orderMeta)); // Per symbol, first elem is count of rules followed by rules
+		// Gather metas and names of all orders
+		for (int orderIdx = 0; meta::info orderMeta : orderMetaRange) {
+			ordersImag.metas[orderIdx] = orderMeta;
 
-			idx += size(meta::base_spec_range(orderMeta)) + 1; // Advance by num of rules/bases for preparing next iteration
+			nameID[orderIdx].name = meta::name_of(orderMeta);
+			nameID[orderIdx].ID = orderIdx;
+			++orderIdx;
+		}
+		// Sort by name for rule binary search
+		std::sort(nameID.begin(), nameID.end(), OrdersNameID::name_cmp);
+		meta::compiler.print("Sorting done");
 
+		int rule_storage_pos = 0;
+		for (int orderIdx = 0; meta::info orderMeta : orderMetaRange) {
+			auto ruleMetaRange = meta::base_spec_range(orderMeta);
+			auto ruleMetaRangeSize = size(ruleMetaRange);
+			meta::compiler.print("one order done");
+
+			// Prepare rule storage
+			ordersReal.rules       [orderIdx]         =	rule_storage_pos;
+			ordersReal.rule_storage[rule_storage_pos] = ruleMetaRangeSize; // Per symbol, first elem is count of rules followed by rules
+			rule_storage_pos += ruleMetaRangeSize + 1; // Advance by num of rules/bases for preparing next iteration
+
+			// Fill rule storage
 			// Go through each each rule/base of a symbol
-			int idx2 = 0; // Index of rule/base for current order symbol
-			for (auto rule : meta::base_spec_range(orderMeta)) {
-				// j is rule idx in orderMetaRange
-				for (int j = 0; meta::info orderMetaCheck : orderMetaRange) {
-					// Store the index of the rule's symbol
-					// It will be found because rules/bases have to be declared beforehand
-					if (meta::type_of(orderMetaCheck) == meta::type_of(rule)) {
-						ordersReal.rule_data(i, idx2) = j;
-						idx2++;
-						break;
-					}
-					++j;
-				}
+			int currRule = 0; // Index of rule/base for current order symbol
+			for (auto rule : ruleMetaRange) {
+				// Binary search rule by name in nameID
+				OrdersNameID ruleName{ meta::name_of(rule), -1 };
+				auto iter = std::lower_bound(nameID.begin(), nameID.end(), ruleName, OrdersNameID::name_cmp);
+				auto ruleIdx = iter->ID; // Namespace order
+
+				ordersReal.rule_data(orderIdx, currRule) = ruleIdx;
+				++currRule;
 			}
 
-			++i;
+			++orderIdx;
 		}
+		meta::compiler.print("All orders done");
 
-		return OrdersDataRI<decltype(ordersReal), decltype(ordersImag)>{ ordersReal, ordersImag };
+		return OrdersDataRI<decltype(ordersReal), decltype(ordersImag)>{ {}, {} };
 	}
 
 } // namespace Meta

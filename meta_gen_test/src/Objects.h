@@ -13,7 +13,7 @@ namespace Objects {
 		
 		// Constructing format
 		std::string fmt =
-		"INLINE void Objs{0}MovedByActs{1}(Objects{0}& objs{0}, const Actors{1}& acts{1}, OObject{0}MovedBy, OActor{1}UpdateDone) {{" nl;
+		"TEST_INLINE void Objs{0}MovedByActs{1}(Objects{0}& objs{0}, const Actors{1}& acts{1}, OObject{0}MovedBy, OActor{1}UpdateDone) {{" nl;
 		if(print_function_name)
 			fmt += tab R"(std::cout << __PRETTY_FUNCTION__ << "\n";)" nl2;
 
@@ -51,7 +51,7 @@ R"(
 
 	std::string ObjsWorldWrapFunc(int obj_idx) {
 		std::string fmt =
-		"INLINE void Objs{0}WorldWrap(Objects{0}& objs{0}, OObject{0}Wrap, OObjectAnyWrap) {{" nl;
+		"TEST_INLINE void Objs{0}WorldWrap(Objects{0}& objs{0}, OObject{0}Wrap, OObjectAnyWrap) {{" nl;
 		if (print_function_name)
 			fmt += tab R"(std::cout << __PRETTY_FUNCTION__ << "\n";)" nl;
 
@@ -75,7 +75,7 @@ R"(
 	{
 		const int paint = gen_paint();
 		std::string fmt =
-		"INLINE void Objs{0}Draw(const Objects{0}& objs{0}, OObjectAnyWrapDone) {{" nl;
+		"TEST_INLINE void Objs{0}Draw(const Objects{0}& objs{0}, OObjectAnyWrapDone) {{" nl;
 		if (print_function_name)
 			fmt += tab R"(std::cout << __PRETTY_FUNCTION__ << "\n";)" nl;
 
@@ -96,7 +96,7 @@ R"(
 	std::string ObjsUpdateFunc(int obj_idx)
 	{
 		std::string fmt =
-			"INLINE void Objs{0}UpdateCurrent(Objects{0}& objs{0}, OObject{0}UpdateCurrent) {{" nl;
+			"TEST_INLINE void Objs{0}UpdateCurrent(Objects{0}& objs{0}, OObject{0}UpdateCurrent) {{" nl;
 		if (print_function_name)
 			fmt += tab R"(std::cout << __PRETTY_FUNCTION__ << "\n";)" nl;
 

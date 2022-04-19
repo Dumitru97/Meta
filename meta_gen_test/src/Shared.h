@@ -30,7 +30,7 @@ false;
 #endif
 
 //#define FORCE_INLINE
-//#define FORCE_NOINLINE
+#define FORCE_NOINLINE
 
 constexpr bool print_acts_objs_len =
 #if defined(PRINT_ACTS_OBJS_LENS)

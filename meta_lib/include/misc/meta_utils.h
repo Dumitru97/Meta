@@ -59,20 +59,21 @@ namespace Meta
 		return 0;
 	}
 
-	constexpr bool const_strcmp(const char* s1, const char* s2) {
-		if (s1 == nullptr || s2 == nullptr)
-			return false;
-
-		const size_t len = const_strlen(s1);
-		if (len != const_strlen(s2)) return false;
-
-		for (int i = 0; i < len; ++i)
-			if (s1[i] != s2[i]) return false;
-
-		return true;
+	constexpr int const_strcmp(const char* s1, const char* s2)
+	{
+		while (*s1 && (*s1 == *s2))
+		{
+			s1++;
+			s2++;
+		}
+		return *s1 - *s2;
 	}
 
-	constexpr bool const_strcmp(const char* s1, const char* s2, const int l1, const int l2) {
+	constexpr bool const_streq(const char* s1, const char* s2) {
+		return const_strcmp(s1, s2) == 0;
+	}
+
+	constexpr bool const_streq(const char* s1, const char* s2, const int l1, const int l2) {
 		if (l1 != l2) return false;
 
 		for (int i = 0; i < l1; ++i)
@@ -81,7 +82,7 @@ namespace Meta
 		return true;
 	}
 
-	constexpr bool const_strcmp(const sv& sv1, const sv& sv2) {
+	constexpr bool const_streq(const sv& sv1, const sv& sv2) {
 		if (sv1.len != sv2.len) return false;
 
 		for (int i = 0; i < sv1.len; ++i)
@@ -90,13 +91,14 @@ namespace Meta
 		return true;
 	}
 
-	constexpr bool const_strcmp(const sv& sv1, const sv& sv2, int len) {
+	constexpr bool const_streq(const sv& sv1, const sv& sv2, int len) {
 		for (int i = 0; i < len; ++i)
 			if (sv1.str[i] != sv2.str[i]) return false;
+
 		return true;
 	}
 
-	constexpr bool const_strcmp(const svp& svp1, const svp& svp2) {
+	constexpr bool const_streq(const svp& svp1, const svp& svp2) {
 		if ((svp1.first.len + svp1.second.len) != (svp2.first.len + svp2.second.len))
 			return false;
 
@@ -116,18 +118,18 @@ namespace Meta
 				b4 = svp2.second;
 			}
 
-			if (!const_strcmp(b1, b2, b1.len)) return false;
+			if (!const_streq(b1, b2, b1.len)) return false;
 
 			b2.str += b1.len;
 			b2.len -= b1.len;
-			if (!const_strcmp(b2, b4, b2.len)) return false;
+			if (!const_streq(b2, b4, b2.len)) return false;
 
 			b4.str += b2.len;
 			b4.len -= b2.len;
-			return const_strcmp(b3, b4, b3.len);
+			return const_streq(b3, b4, b3.len);
 		}
 		else { //first pair is equal len, means second is too
-			return const_strcmp(svp1.first, svp2.first) && const_strcmp(svp1.second, svp2.second);
+			return const_streq(svp1.first, svp2.first) && const_streq(svp1.second, svp2.second);
 		}
 	}
 
@@ -228,7 +230,7 @@ namespace Meta
 		const auto svp1 = remove_inside(clean_sv1, "const", 5);
 		const auto svp2 = remove_inside(clean_sv2, "const", 5);
 
-		return const_strcmp(svp1, svp2);
+		return const_streq(svp1, svp2);
 	}
 
 	consteval bool compare_type_names(meta::info reflect1, meta::info reflect2) {

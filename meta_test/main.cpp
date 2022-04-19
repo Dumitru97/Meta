@@ -27,12 +27,6 @@ int main() {
 				const int objs = objs_arr[j];
 				const int reps = reps_arr[k];
 				TestWith(acts, objs, reps);
-
-				//TODO better separation of stable functions, have just the meta stuff in one file, and the other(less stable) in another
-				/*OOPC_Init(actor_num, acts, obj_num, objs);
-				std::cout << std::format("Benchmarking with acts={0}, objs={1}, optimiz={2}, reps={3}\t", acts, objs, "OOP", reps);
-				Benchmark(CallTestOOP, false, reps);
-				std::cout << "\n";*/
 			}
 
 #ifdef _WIN32
@@ -92,10 +86,23 @@ void TestWith(int acts, int objs, int reps) {
 	std::cout << std::format("Benchmarking with acts={0}, objs={1}, optimiz={2}, reps={3}\t", acts, objs, "SA       ", reps);
 	auto r3 = BenchmarkSimulation(RunSimulation<OPTIMIZED>, reps);
 
-	if (r3 < r2 && r3 < r1) {
-		std::cout << "FASTER" "\n";
-		//diff
-	}
+	auto compare = [](const char* a_str, const char* b_str, auto a, auto b, float print_thresh_perc) {
+		float thresh = print_thresh_perc;
+		if (a < b) {
+			float value = (b / a - 1) * 100;
+			if(value > thresh)
+				std::cout << std::format("{} FASTER than {} by {}%", a_str, b_str, value) << "\n";
+		}
+		else {
+			float value = (a / b - 1) * 100;
+			if (value > thresh)
+				std::cout << std::format("{} SLOWER than {} by {}%", a_str, b_str, value) << "\n";
+		}
+	};
+
+	compare("SA", "DefOrder1", r3, r1, 1);
+	compare("SA", "DefOrder2", r3, r2, 1);
+
 	std::cout << "\n";
 }
 
