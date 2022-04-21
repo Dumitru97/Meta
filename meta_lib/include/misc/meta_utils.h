@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <vector>
 #include <string_view>
 #include <experimental/meta>
 #include <experimental/compiler>
@@ -63,74 +64,14 @@ namespace Meta
 	{
 		while (*s1 && (*s1 == *s2))
 		{
-			s1++;
-			s2++;
+			++s1;
+			++s2;
 		}
 		return *s1 - *s2;
 	}
 
-	constexpr bool const_streq(const char* s1, const char* s2) {
-		return const_strcmp(s1, s2) == 0;
-	}
-
-	constexpr bool const_streq(const char* s1, const char* s2, const int l1, const int l2) {
-		if (l1 != l2) return false;
-
-		for (int i = 0; i < l1; ++i)
-			if (s1[i] != s2[i]) return false;
-
-		return true;
-	}
-
-	constexpr bool const_streq(const sv& sv1, const sv& sv2) {
-		if (sv1.len != sv2.len) return false;
-
-		for (int i = 0; i < sv1.len; ++i)
-			if (sv1.str[i] != sv2.str[i]) return false;
-
-		return true;
-	}
-
-	constexpr bool const_streq(const sv& sv1, const sv& sv2, int len) {
-		for (int i = 0; i < len; ++i)
-			if (sv1.str[i] != sv2.str[i]) return false;
-
-		return true;
-	}
-
-	constexpr bool const_streq(const svp& svp1, const svp& svp2) {
-		if ((svp1.first.len + svp1.second.len) != (svp2.first.len + svp2.second.len))
-			return false;
-
-		if (svp1.first.len != svp2.first.len) {
-			//we change it later with substitutions
-			sv b1, b2, b3, b4; //b1 is < len than b2
-			if (svp1.first.len < svp2.first.len) {
-				b1 = svp1.first;
-				b2 = svp2.first;
-				b3 = svp2.second;
-				b4 = svp1.second;
-			}
-			else {
-				b1 = svp2.first;
-				b2 = svp1.first;
-				b3 = svp1.second;
-				b4 = svp2.second;
-			}
-
-			if (!const_streq(b1, b2, b1.len)) return false;
-
-			b2.str += b1.len;
-			b2.len -= b1.len;
-			if (!const_streq(b2, b4, b2.len)) return false;
-
-			b4.str += b2.len;
-			b4.len -= b2.len;
-			return const_streq(b3, b4, b3.len);
-		}
-		else { //first pair is equal len, means second is too
-			return const_streq(svp1.first, svp2.first) && const_streq(svp1.second, svp2.second);
-		}
+	constexpr bool const_strcmp_less(const char* s1, const char* s2) {
+		return const_strcmp(s1, s2) < 0;
 	}
 
 	constexpr const char* remove_prefix_str(const char* s, int& slen, const char* pref, const int pref_len) {
@@ -221,23 +162,50 @@ namespace Meta
 		return sv{ clean, len };
 	}
 
-	constexpr bool compare_type_names(const char* dirty_n1, const char* dirty_n2) {
-		int len1 = const_strlen(dirty_n1);
-		int len2 = const_strlen(dirty_n2);
-		auto clean_sv1 = clean_name_cvref(dirty_n1, len1);
-		auto clean_sv2 = clean_name_cvref(dirty_n2, len2);
+	constexpr int const_strcmp(const svp& svp1, const svp& svp2) {
+		std::vector<char> v1(svp1.first.len + svp1.second.len + 1);
+		std::vector<char> v2(svp2.first.len + svp2.second.len + 1);
+
+		for (int i = 0; i < svp1.first.len; ++i)
+			v1[i] = svp1.first.str[i];
+		for (int i = 0; i < svp1.second.len; ++i)
+			v1[svp1.first.len + i] = svp1.second.str[i];
+		v1[svp1.first.len + svp1.second.len] = '\0';
+
+		for (int i = 0; i < svp2.first.len; ++i)
+			v2[i] = svp2.first.str[i];
+		for (int i = 0; i < svp2.second.len; ++i)
+			v2[svp2.first.len + i] = svp2.second.str[i];
+		v2[svp2.first.len + svp2.second.len] = '\0';
+
+		return const_strcmp(v1.data(), v2.data());;
+	}
+
+	constexpr int compare_type_names(const char* dirty_n1, const char* dirty_n2) {
+		const int len1 = const_strlen(dirty_n1);
+		const int len2 = const_strlen(dirty_n2);
+		const auto clean_sv1 = clean_name_cvref(dirty_n1, len1);
+		const auto clean_sv2 = clean_name_cvref(dirty_n2, len2);
 
 		const auto svp1 = remove_inside(clean_sv1, "const", 5);
 		const auto svp2 = remove_inside(clean_sv2, "const", 5);
 
-		return const_streq(svp1, svp2);
+		return const_strcmp(svp1, svp2);
 	}
 
-	consteval bool compare_type_names(meta::info reflect1, meta::info reflect2) {
+	consteval bool equal_type_names(meta::info reflect1, meta::info reflect2) {
 		const char* dirty_n1 = meta::name_of(meta::type_of(reflect1));
 		const char* dirty_n2 = meta::name_of(meta::type_of(reflect2));
 
-		return compare_type_names(dirty_n1, dirty_n2);
+		return compare_type_names(dirty_n1, dirty_n2) == 0;
+	}
+
+	constexpr auto binary_search_it(auto first, auto last, const auto& value, auto cmp)
+	{
+		first = std::lower_bound(first, last, value, cmp);
+		if (!(first == last) && !(cmp(value, *first)))
+			return first;
+		return last;
 	}
 
 } // namespace Meta

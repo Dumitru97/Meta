@@ -1,13 +1,13 @@
 #pragma once
 #include "optimizer/SimulatedAnnealing_Implementation1.h"
 #include "3_Functions.h"
+#include "misc/print.h"
 
 #if defined(META_PRECOMPUTE)
-#include "misc/print.h"
+#include "misc/func_format.h"
 
 #include <array>
 #include <iostream>
-#include <strstream>
 #include <algorithm>
 #else
 #include "4_Arguments.h"

@@ -204,7 +204,7 @@ namespace Meta
 				int paramIdx = 0;
 				bool isParam = false;
 				for (meta::info paramMetaCheck : paramsDataImag.metas) {
-					if (compare_type_names(paramMetaCheck, paramMeta)) {
+					if (equal_type_names(paramMetaCheck, paramMeta)) {
 						isParam = true;
 						break;
 					}

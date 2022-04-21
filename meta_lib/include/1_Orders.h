@@ -177,13 +177,11 @@ namespace Meta
 		}
 		// Sort by name for rule binary search
 		std::sort(nameID.begin(), nameID.end(), OrdersNameID::name_cmp);
-		meta::compiler.print("Sorting done");
 
 		int rule_storage_pos = 0;
 		for (int orderIdx = 0; meta::info orderMeta : orderMetaRange) {
 			auto ruleMetaRange = meta::base_spec_range(orderMeta);
 			auto ruleMetaRangeSize = size(ruleMetaRange);
-			meta::compiler.print("one order done");
 
 			// Prepare rule storage
 			ordersReal.rules       [orderIdx]         =	rule_storage_pos;
@@ -196,7 +194,7 @@ namespace Meta
 			for (auto rule : ruleMetaRange) {
 				// Binary search rule by name in nameID
 				OrdersNameID ruleName{ meta::name_of(rule), -1 };
-				auto iter = std::lower_bound(nameID.begin(), nameID.end(), ruleName, OrdersNameID::name_cmp);
+				auto iter = lower_bound(nameID.begin(), nameID.end(), ruleName, OrdersNameID::name_cmp);
 				auto ruleIdx = iter->ID; // Namespace order
 
 				ordersReal.rule_data(orderIdx, currRule) = ruleIdx;
@@ -205,9 +203,8 @@ namespace Meta
 
 			++orderIdx;
 		}
-		meta::compiler.print("All orders done");
 
-		return OrdersDataRI<decltype(ordersReal), decltype(ordersImag)>{ {}, {} };
+		return OrdersDataRI<decltype(ordersReal), decltype(ordersImag)>{ ordersReal, ordersImag };
 	}
 
 } // namespace Meta

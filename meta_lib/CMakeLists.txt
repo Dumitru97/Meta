@@ -11,7 +11,7 @@ set(header_files "meta.h"
                  "optimizer/SimulatedAnnealing_Implementation1.h"
                  "misc/meta_utils.h"
                  "misc/print.h"
-)
+                 "misc/func_format.h")
 list(TRANSFORM header_files PREPEND "include/")
 
 add_library (meta_lib INTERFACE ${header_files})
