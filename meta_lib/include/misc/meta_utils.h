@@ -162,23 +162,59 @@ namespace Meta
 		return sv{ clean, len };
 	}
 
+	constexpr void swap(sv& sv1, sv& sv2) {
+		auto t = sv1;
+		sv1 = sv2;
+		sv2 = t;
+	}
+
+	constexpr int const_strcmp(const sv& sv1, const sv& sv2)
+	{
+		return const_strcmp(sv1.str, sv2.str);
+	}
+
+	constexpr int const_strcmp(const sv& sv1, const sv& sv2, int len) {
+		int i = 0;
+		for (; i < len; ++i)
+			if (sv1.str[i] != sv2.str[i])
+				return sv1.str[i] - sv2.str[i];
+
+		return 0;
+	}
+
 	constexpr int const_strcmp(const svp& svp1, const svp& svp2) {
-		std::vector<char> v1(svp1.first.len + svp1.second.len + 1);
-		std::vector<char> v2(svp2.first.len + svp2.second.len + 1);
+		int reverse = 1;
+		if (svp1.first.len != svp2.first.len) {
+			sv  b1 = svp1.first,
+				b2 = svp2.first,
+				b3 = svp2.second,
+				b4 = svp1.second;
 
-		for (int i = 0; i < svp1.first.len; ++i)
-			v1[i] = svp1.first.str[i];
-		for (int i = 0; i < svp1.second.len; ++i)
-			v1[svp1.first.len + i] = svp1.second.str[i];
-		v1[svp1.first.len + svp1.second.len] = '\0';
+			if (svp1.first.len > svp2.first.len) {
+				swap(b1, b2);
+				swap(b3, b4);
+				reverse = -1;
+			}
 
-		for (int i = 0; i < svp2.first.len; ++i)
-			v2[i] = svp2.first.str[i];
-		for (int i = 0; i < svp2.second.len; ++i)
-			v2[svp2.first.len + i] = svp2.second.str[i];
-		v2[svp2.first.len + svp2.second.len] = '\0';
+			auto res = const_strcmp(b1, b2, b1.len);
+			if (res != 0) return res * reverse;
 
-		return const_strcmp(v1.data(), v2.data());;
+			b2.str += b1.len;
+			b2.len -= b1.len;
+			res = const_strcmp(b4, b2, b2.len);
+			if (res != 0) return res * reverse;
+
+			b4.str += b2.len;
+			b4.len -= b2.len;
+			return const_strcmp(b4, b3) * reverse;
+		}
+		else {
+			auto res = const_strcmp(svp1.first, svp2.first, svp1.first.len);
+			if (res == 0)
+				res = const_strcmp(svp1.second, svp2.second);
+
+			return res;
+		}
 	}
 
 	constexpr int compare_type_names(const char* dirty_n1, const char* dirty_n2) {
