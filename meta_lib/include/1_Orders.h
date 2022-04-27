@@ -16,29 +16,22 @@ namespace Meta
 		static constexpr int count = orderCount;
 
 		constexpr auto rule_size(int idx) const {
-			return at_storage(rules[idx]);
+			return rule_storage[rules[idx]];
 		}
 		constexpr auto& rule_size(int idx) {
-			return at_storage(rules[idx]);
+			return rule_storage[rules[idx]];
 		}
 
 		constexpr auto rule_data(int idx, int j) const {
-			return at_storage(rules[idx] + j + 1);
+			return rule_storage[rules[idx] + j + 1];
 		}
 		constexpr auto& rule_data(int idx, int j) {
-			return at_storage(rules[idx] + j + 1);
-		}
-	public:
-		constexpr auto at_storage(int idx) const {
-			return rule_storage[idx];
-		}
-		constexpr auto& at_storage(int idx) {
-			return rule_storage[idx];
+			return rule_storage[rules[idx] + j + 1];
 		}
 	};
 
-	struct OrdersNameID{
-		const char* name;
+	struct OrdersNameID {
+		sv name;
 		int ID;
 
 		static constexpr bool name_cmp(const OrdersNameID& lsh, const OrdersNameID& rsh) {
@@ -46,9 +39,37 @@ namespace Meta
 		}
 	};
 
-	template<size_t orderCount>
+	template<auto orderNamespaceMeta>
+	consteval auto CreateOrdersNameIDs() {
+		constexpr auto orderMetaRange = meta::members_of(orderNamespaceMeta, meta::is_class);
+		constexpr size_t orderCount = size(orderMetaRange);
+		std::array<OrdersNameID, orderCount> nameIDs;
+
+		// Gather names of all orders
+		for (int orderIdx = 0; meta::info orderMeta : orderMetaRange) {
+			nameIDs[orderIdx].name.str = meta::name_of(meta::type_of(orderMeta));
+			nameIDs[orderIdx].name.len = const_strlen(nameIDs[orderIdx].name.str);
+			nameIDs[orderIdx].ID = orderIdx;
+			++orderIdx;
+		}
+
+		// Sort by name for rule binary search
+		std::sort(nameIDs.begin(), nameIDs.end(), OrdersNameID::name_cmp);
+
+		return nameIDs;
+	}
+
+	template<typename orderNsHelper>
+	struct OrdersNameIDsHelper {
+		static constexpr auto nameIDs 
+			= CreateOrdersNameIDs<orderNsHelper::meta>();
+	};
+
+	template<size_t orderCount, typename orderNsHelper>
 	struct OrdersDataImag {
-		std::array<meta::info  , orderCount> metas{};
+		std::array<meta::info, orderCount> metas{};
+		using nameIDsHelper = OrdersNameIDsHelper<orderNsHelper>;
+
 		static constexpr int count = orderCount;
 	};
 
@@ -56,12 +77,6 @@ namespace Meta
 	struct OrdersDataRI {
 		T1 real;
 		T2 imag;
-	};
-
-	template<size_t orderCount>
-	struct OrdersCmpSwapMats {
-		std::array<std::array<bool, orderCount>, orderCount> swap{};
-		std::array<std::array<int, orderCount>, orderCount> cmp{};// < 
 	};
 
 	template<auto namespaceMeta>
@@ -72,6 +87,67 @@ namespace Meta
 		}
 		return sum;
 	}
+
+	template<typename orderNamespaceHelper>
+	consteval auto CreateOrdersData() {
+		// Order symbols are stored in struct/class names
+		// Count all struct/class declarations in namespace
+		constexpr auto orderNamespaceMeta = orderNamespaceHelper::meta;
+		constexpr auto orderMetaRange = meta::members_of(orderNamespaceMeta, meta::is_class);
+		constexpr size_t orderCount = size(orderMetaRange);
+
+		// Order rules are based on inheritance
+		// Count all struct/class declarations in namespace + all their bases(which define the rules)
+		constexpr size_t orderRulesTotal = CalcOrderRulesStorageSize<orderNamespaceMeta>();
+		constexpr size_t ordersStorageSize = orderCount + orderRulesTotal;
+
+		OrdersDataReal<orderCount, ordersStorageSize> ordersReal{};
+		OrdersDataImag<orderCount, orderNamespaceHelper> ordersImag{};
+		using ordersImagType = decltype(ordersImag);
+
+		// Gather metas of all orders
+		for (int orderIdx = 0; meta::info orderMeta : orderMetaRange)
+			ordersImag.metas[orderIdx++] = orderMeta;
+
+		int rule_storage_pos = 0;
+		for (int orderIdx = 0; meta::info orderMeta : orderMetaRange) {
+			auto ruleMetaRange = meta::base_spec_range(orderMeta);
+			auto ruleMetaRangeSize = size(ruleMetaRange);
+
+			// Prepare rule storage
+			ordersReal.rules       [orderIdx]         =	rule_storage_pos;
+			ordersReal.rule_storage[rule_storage_pos] = ruleMetaRangeSize; // Per symbol, first elem is count of rules followed by rules
+			rule_storage_pos += ruleMetaRangeSize + 1; // Advance by count of rules/bases + size for preparing the next iteration
+
+			// Fill rule storage
+			// Go through each each rule/base of a symbol
+			int currRule = 0; // Index of rule/base for current order symbol
+			for (auto rule : ruleMetaRange) {
+				const char* ruleNameStr = meta::name_of(meta::type_of(rule));
+				OrdersNameID ruleName{ {ruleNameStr, const_strlen(ruleNameStr) }, -1};
+
+				// Binary search rule by name in nameID
+				auto iter = lower_bound(ordersImagType::nameIDsHelper::nameIDs.begin(),
+										ordersImagType::nameIDsHelper::nameIDs.end(),
+										ruleName,
+										OrdersNameID::name_cmp);
+				auto ruleIdx = iter->ID; // Namespace order
+
+				ordersReal.rule_data(orderIdx, currRule) = ruleIdx;
+				++currRule;
+			}
+
+			++orderIdx;
+		}
+
+		return OrdersDataRI<decltype(ordersReal), decltype(ordersImag)>{ ordersReal, ordersImag };
+	}
+
+	template<size_t orderCount>
+	struct OrdersCmpSwapMats {
+		std::array<std::array<bool, orderCount>, orderCount> swap{};
+		std::array<std::array<int, orderCount>, orderCount> cmp{};// < 
+	};
 
 	//returns e1 < e2, e2 < e1
 	std::pair<char, char> OrdersCmp(const auto& expanded_bases, int primary, int secondary) {
@@ -149,62 +225,6 @@ namespace Meta
 		ComputeOrdersCmp(ordersCmpSwapMats, ordersReal);
 
 		return ordersCmpSwapMats;
-	}
-
-	template<auto orderNamespaceMeta>
-	consteval auto CreateOrdersData() {
-		// Order symbols are stored in struct/class names
-		// Count all struct/class declarations in namespace
-		constexpr auto orderMetaRange = meta::members_of(orderNamespaceMeta, meta::is_class);
-		constexpr size_t orderCount = size(orderMetaRange);
-
-		// Order rules are based on inheritance
-		// Count all struct/class declarations in namespace + all their bases(which define the rules)
-		constexpr size_t orderRulesTotal = CalcOrderRulesStorageSize<orderNamespaceMeta>();
-		constexpr size_t ordersStorageSize = orderCount + orderRulesTotal;
-
-		OrdersDataReal<orderCount, ordersStorageSize> ordersReal{};
-		OrdersDataImag<orderCount> ordersImag{};
-		std::array<OrdersNameID, orderCount> nameID{};
-
-		// Gather metas and names of all orders
-		for (int orderIdx = 0; meta::info orderMeta : orderMetaRange) {
-			ordersImag.metas[orderIdx] = orderMeta;
-
-			nameID[orderIdx].name = meta::name_of(orderMeta);
-			nameID[orderIdx].ID = orderIdx;
-			++orderIdx;
-		}
-		// Sort by name for rule binary search
-		std::sort(nameID.begin(), nameID.end(), OrdersNameID::name_cmp);
-
-		int rule_storage_pos = 0;
-		for (int orderIdx = 0; meta::info orderMeta : orderMetaRange) {
-			auto ruleMetaRange = meta::base_spec_range(orderMeta);
-			auto ruleMetaRangeSize = size(ruleMetaRange);
-
-			// Prepare rule storage
-			ordersReal.rules       [orderIdx]         =	rule_storage_pos;
-			ordersReal.rule_storage[rule_storage_pos] = ruleMetaRangeSize; // Per symbol, first elem is count of rules followed by rules
-			rule_storage_pos += ruleMetaRangeSize + 1; // Advance by num of rules/bases for preparing next iteration
-
-			// Fill rule storage
-			// Go through each each rule/base of a symbol
-			int currRule = 0; // Index of rule/base for current order symbol
-			for (auto rule : ruleMetaRange) {
-				// Binary search rule by name in nameID
-				OrdersNameID ruleName{ meta::name_of(rule), -1 };
-				auto iter = lower_bound(nameID.begin(), nameID.end(), ruleName, OrdersNameID::name_cmp);
-				auto ruleIdx = iter->ID; // Namespace order
-
-				ordersReal.rule_data(orderIdx, currRule) = ruleIdx;
-				++currRule;
-			}
-
-			++orderIdx;
-		}
-
-		return OrdersDataRI<decltype(ordersReal), decltype(ordersImag)>{ ordersReal, ordersImag };
 	}
 
 } // namespace Meta
