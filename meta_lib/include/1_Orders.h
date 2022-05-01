@@ -6,6 +6,10 @@
 
 namespace Meta
 {
+	//////////////////////////////////////////////
+	// Data type used in non-consteval contexts //
+	//////////////////////////////////////////////
+
 	template<size_t orderCount, size_t rulesStorageSize>
 	struct OrdersDataReal {
 		using order_t = int;
@@ -29,6 +33,12 @@ namespace Meta
 			return rule_storage[rules[idx] + j + 1];
 		}
 	};
+
+
+
+	///////////////////////////////////////////
+	// Data types used in consteval contexts //
+	///////////////////////////////////////////
 
 	struct OrdersNameID {
 		sv name;
@@ -59,6 +69,8 @@ namespace Meta
 		return nameIDs;
 	}
 
+	// Structure passed through stages to provide const chars* as template parameters
+	// Holds sorted names of orders
 	template<typename orderNsHelper>
 	struct OrdersNameIDsHelper {
 		static constexpr auto nameIDs 
@@ -73,11 +85,23 @@ namespace Meta
 		static constexpr int count = orderCount;
 	};
 
+
+
+	/////////////////////////////////////////
+	// Resulting output type of this stage //
+	/////////////////////////////////////////
+
 	template<typename T1, typename T2>
 	struct OrdersDataRI {
 		T1 real;
 		T2 imag;
 	};
+
+
+
+	///////////////////////////////////
+	// Output function of this stage //
+	///////////////////////////////////
 
 	template<auto namespaceMeta>
 	consteval size_t CalcOrderRulesStorageSize() {
@@ -142,6 +166,12 @@ namespace Meta
 
 		return OrdersDataRI<decltype(ordersReal), decltype(ordersImag)>{ ordersReal, ordersImag };
 	}
+
+
+
+	////////////////////////////////////////
+	// Runtime preprocessing calculations //
+	////////////////////////////////////////
 
 	template<size_t orderCount>
 	struct OrdersCmpSwapMats {

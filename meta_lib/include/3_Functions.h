@@ -3,19 +3,9 @@
 
 namespace Meta
 {
-	template<typename T>
-	struct span {
-		constexpr auto& operator[](int i) {
-			return data[i];
-		}
-
-		constexpr auto operator[](int i) const {
-			return data[i];
-		}
-
-		T* data;
-		int len;
-	};
+	//////////////////////////////////////////////
+	// Data types used in non-consteval contexts //
+	//////////////////////////////////////////////
 
 	struct function {
 		int storageIdx; // paramIdxsStorage idx
@@ -93,11 +83,23 @@ namespace Meta
 		}
 	};
 
+
+
+	///////////////////////////////////////////
+	// Data types used in consteval contexts //
+	///////////////////////////////////////////
+
 	template<size_t funcCount>
 	struct FuncsDataImag {
 		std::array<meta::info, funcCount> metas{};
 		inline static constexpr int count = funcCount;
 	};
+
+
+
+	/////////////////////////////////////////
+	// Resulting output type of this stage //
+	/////////////////////////////////////////
 
 	template<typename T1, typename T2>
 	struct FuncsDataRI {
@@ -105,68 +107,82 @@ namespace Meta
 		T2 imag;
 	};
 
-	template<auto namespaceMeta>
-	consteval auto CreateFuncsData(const auto& paramsDataImag, const auto& ordersDataRI) {
-		constexpr auto funcMetaRange = meta::members_of(namespaceMeta, meta::is_function);
-		constexpr size_t funcCount = size(funcMetaRange);
 
-		constexpr size_t paramIdxsStorageSize = CalcTotalParamAndOrderCount<namespaceMeta>();
+
+	///////////////////////////////////
+	// Output function of this stage //
+	///////////////////////////////////
+
+	template<auto namespaceMeta, auto ordersDataImag, auto paramsDataImag>
+	consteval auto CreateFuncsData() {
+		constexpr auto funcMetaRange = meta::members_of(namespaceMeta, meta::is_function);
+
+		constexpr size_t funcCount = size(funcMetaRange);
+		constexpr size_t paramIdxsStorageSize = CalcTotalParamAndOrderCount(funcMetaRange);
 
 		FuncsDataReal<funcCount, paramIdxsStorageSize> funcsDataReal{};
 		FuncsDataImag<funcCount> funcsDataImag{};
 
+		// Gather data to be used in the order optimization step
 		int storeIdxOffset = 0;
-		int i = 0;
+		int funcIdx = 0;
 		for (meta::info funcMeta : funcMetaRange) {
-			funcsDataImag.metas[i] = funcMeta;
-
 			auto paramRange = meta::param_range(funcMeta);
-			const auto totalParamRangeCount = size(paramRange);
+			const auto funcParamRangeCount = size(paramRange);
 
-			funcsDataReal.funcs[i].storageIdx = storeIdxOffset;
-			funcsDataReal.funcs[i].paramEnd = -1;
-			funcsDataReal.funcs[i].orderEnd = totalParamRangeCount;
-			funcsDataReal.funcs[i].ID = i;
+			funcsDataImag.metas[funcIdx] = funcMeta;
+			funcsDataReal.funcs[funcIdx].storageIdx = storeIdxOffset;
+			funcsDataReal.funcs[funcIdx].paramEnd = -1;
+			funcsDataReal.funcs[funcIdx].orderEnd = funcParamRangeCount;
+			funcsDataReal.funcs[funcIdx].ID = funcIdx;
 
+			// Fill paramIdxsStorage with idxs from ordersDataImag and paramsDataImag
 			int orderCount = 0;
-			for (int j = 0; meta::info paramMeta : paramRange) {
+			for (int funcParamIdx = 0; meta::info paramMeta : paramRange)
+			{
+				// If order section hasn't started
+				if (orderCount == 0) {
+					// Find param idx in paramsData for current function parameter
+					const auto& paramsNameIDs = decltype(paramsDataImag)::nameIDsHelper::nameIDs;
+					ParamsNameID value = { .cleanName = clean_name(paramMeta),
+										   .ID = -1,
+										   .isPtr = meta::has_pointer_type(paramMeta) };
+					auto it = binary_search_it(paramsNameIDs.begin(), paramsNameIDs.end(), value, ParamsNameID::name_cmp);
 
-				// Find param idx in paramData for current function parameter
-				int paramIdx = 0;
-				bool isParam = false;
-				for (meta::info paramMetaCheck : paramsDataImag.metas) {
-					if (equal_type_names(paramMetaCheck, paramMeta)) {
-						isParam = true;
-						break;
+					// isParam?
+					if (it != paramsNameIDs.end()) {
+						auto paramIdx = std::distance(paramsNameIDs.begin(), it);
+						funcsDataReal.paramIdxsStorage[storeIdxOffset + funcParamIdx++] = paramIdx;
+						continue;
 					}
-					++paramIdx;
 				}
 
-				if (isParam)
-					funcsDataReal.paramIdxsStorage[storeIdxOffset + j++] = paramIdx; // Store idx
-				else // isOrder
-				{
-					// Find order idx in orderData for current function parameter
-					int orderIdx = 0;
-					for (meta::info orderMetaCheck : ordersDataRI.imag.metas) {
-						if (meta::type_of(orderMetaCheck) == meta::type_of(paramMeta))
-							break;
+				// Find order idx in ordersData for current function parameter
+				const auto& ordersNameIDs = decltype(ordersDataImag)::nameIDsHelper::nameIDs;
+				OrdersNameID value = { .name = { meta::name_of(meta::type_of(paramMeta)), const_strlen(value.name.str) },
+									   .ID = -1 };
+				auto it = binary_search_it(ordersNameIDs.begin(), ordersNameIDs.end(), value, OrdersNameID::name_cmp);
+				
+				auto orderIdx = std::distance(ordersNameIDs.begin(), it);
+				funcsDataReal.paramIdxsStorage[storeIdxOffset + funcParamIdx++] = orderIdx;
 
-						++orderIdx;
-					}
-
-					++orderCount;
-					funcsDataReal.paramIdxsStorage[storeIdxOffset + j++] = orderIdx; // Store idx
-				}
+				++orderCount;
 			}
-			funcsDataReal.funcs[i].paramEnd = totalParamRangeCount - orderCount;
-			storeIdxOffset += totalParamRangeCount;
 
-			++i;
+			funcsDataReal.funcs[funcIdx].paramEnd = funcParamRangeCount - orderCount;
+
+			storeIdxOffset += funcParamRangeCount;
+			++funcIdx;
 		}
 
 		return FuncsDataRI<decltype(funcsDataReal), decltype(funcsDataImag)>{ funcsDataReal, funcsDataImag };
 	}
+
+
+
+	////////////////////////////////////////
+	// Runtime preprocessing calculations //
+	////////////////////////////////////////
 
 	template<size_t funcCount>
 	struct FuncsCmpSwapMats {

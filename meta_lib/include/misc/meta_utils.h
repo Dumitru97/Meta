@@ -10,6 +10,20 @@ namespace Meta
 	namespace std = ::std;
 	namespace meta = std::experimental::meta;
 
+	template<typename T>
+	struct span {
+		constexpr auto& operator[](int i) {
+			return data[i];
+		}
+
+		constexpr auto operator[](int i) const {
+			return data[i];
+		}
+
+		T* data;
+		int len;
+	};
+
 	template<int sz>
 	constexpr std::array<char, sz> explode(const char* src) {
 		std::array<char, sz> arr{};

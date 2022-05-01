@@ -4,6 +4,10 @@
 
 namespace Meta
 {
+	///////////////////////////////////////////
+	// Data types used in consteval contexts //
+	///////////////////////////////////////////
+
 	struct ParamsNameID {
 		sv cleanName;
 		int ID;
@@ -70,8 +74,8 @@ namespace Meta
 		auto uniqueNameIDsEnd = std::set_difference(nameIDs.begin(), nameIDsEnd,
 													orderNameIDs.begin(), orderNameIDs.end(),
 													uniqueNameIDs.begin());
-		const auto actual_size = std::distance(uniqueNameIDs.begin(), uniqueNameIDsEnd);
 
+		const auto actual_size = std::distance(uniqueNameIDs.begin(), uniqueNameIDsEnd);
 		return std::pair{ uniqueNameIDs, actual_size };
 	}
 
@@ -97,21 +101,34 @@ namespace Meta
 		return nameIDs;
 	}
 
+	// Structure passed through stages to provide const chars* as template parameters
+	// Holds sorted names of unique params, consequently the number of unique params
 	template<typename funcNamespaceHelper, typename ordersDataImagType>
 	struct ParamsNameIDsHelper {
 		static constexpr auto nameIDs
 			= CreateParamsNameIDs<funcNamespaceHelper, ordersDataImagType>();
 	};
 
+
+
+
+	/////////////////////////////////////////
+	// Resulting output type of this stage //
+	/////////////////////////////////////////
+
 	template<size_t paramCount, typename funcNamespaceHelper, typename ordersDataImagType>
 	struct ParamsDataImag {
 		std::array<meta::info, paramCount> metas{};
-		std::array<const char*, paramCount> meta_s{}; //DEBUG
 		using nameIDsHelper = ParamsNameIDsHelper<funcNamespaceHelper, ordersDataImagType>;
-		//static constexpr auto nameIDs = CreateParamsNameIDs<funcNamespaceHelper, ordersDataImagType>();
 
 		static constexpr int count = paramCount;
 	};
+
+
+
+	///////////////////////////////////
+	// Output function of this stage //
+	///////////////////////////////////
 
 	template<typename funcNamespaceHelper, auto ordersDataImag>
 	consteval auto CreateParamsData() {
@@ -119,22 +136,21 @@ namespace Meta
 		constexpr auto funcMetaRange = meta::members_of(funcNamespaceMeta, meta::is_function);
 		constexpr size_t totalParamAndOrderCount = CalcTotalParamAndOrderCount(funcMetaRange);
 
+		// Compute nameIDs
 		using nameIDsHelper = ParamsNameIDsHelper<funcNamespaceHelper, decltype(ordersDataImag)>;
 
+		// Gather names of all function params and orders
 		std::array<meta::info, totalParamAndOrderCount> allMetas{};
 		for (int paramIdx = 0; meta::info funcMeta : funcMetaRange)
 			for (meta::info paramMeta : meta::param_range(funcMeta))
 				allMetas[paramIdx++] = paramMeta;
 
 		constexpr auto truncated_size = nameIDsHelper::nameIDs.size();
-
 		ParamsDataImag<truncated_size, funcNamespaceHelper, decltype(ordersDataImag)> paramsDataImag{};
 
-		// Copy unique params from extra size storage to actual size storage
-		for (int i = 0; i < truncated_size; ++i) {
+		// Copy unique params from allMetas to output
+		for (int i = 0; i < truncated_size; ++i)
 			paramsDataImag.metas[i] = allMetas[nameIDsHelper::nameIDs[i].ID];
-			paramsDataImag.meta_s[i] = meta::name_of(paramsDataImag.metas[i]); //DEBUG
-		}
 
 		return paramsDataImag;
 	}

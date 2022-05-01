@@ -59,10 +59,31 @@ inline int MetaOptimToFileHeaderFunc ## ON ## FN () {														\
 		using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN);													\
 																											\
 		constexpr auto ordersDataRI = Meta::CreateOrdersData<ON_Helper>();									\
-		Meta::meta::compiler.print("Created orders data.");													\
+		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created orders data.");							\
 		constexpr auto paramsDataI = Meta::CreateParamsData<FN_Helper, ordersDataRI.imag>();				\
-		Meta::meta::compiler.print("Created params data.");													\
+		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created params data.");							\
+		constexpr auto funcsDataRI = Meta::CreateFuncsData<^ FN, ordersDataRI.imag, paramsDataI>();			\
+		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created functions data.");						\
 																											\
+		->fragment {																						\
+			using OrdersDataRealType [[maybe_unused]] = decltype(%{ ordersDataRI.real });					\
+			using FuncsDataRealType [[maybe_unused]] = decltype(%{ funcsDataRI.real });						\
+			constexpr auto ordersDataReal = %{ ordersDataRI.real };											\
+			constexpr auto funcsDataReal = %{ funcsDataRI.real };											\
+			auto ordersCmpSwapMats = CreateOrdersCmpSwapMats(ordersDataReal);								\
+			auto funcsCmpSwapMats = CreateFuncsCmpSwapMats(ordersCmpSwapMats, funcsDataReal);				\
+																											\
+			std::tuple input{ ordersDataReal, funcsDataReal, ordersCmpSwapMats, funcsCmpSwapMats };			\
+			auto newFuncsDataReal = Meta::SimulatedAnnealing<												\
+				Meta::SAFunctionOrderSettings<OrdersDataRealType, FuncsDataRealType,						\
+											  decltype(ordersCmpSwapMats), decltype(funcsCmpSwapMats)>		\
+			>(input);																						\
+																											\
+			WriteIdxsToFile(newFuncsDataReal,																\
+							META_PRECOMPUTE_HEADER_FILENAME(ON, FN),										\
+							META_STRINGIFY(META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN))					\
+							);																				\
+		};																									\
 	}																										\
 	return 0;																								\
 }																											\
@@ -80,26 +101,41 @@ inline int MetaOptimToFile ## ON ## FN = MetaOptimToFileHeaderFunc ## ON ## FN (
 
 
 // Creates variables in the global namespace to be used as function arguments
-#define META_CREATE_ARGUMENTS(ON, FN)												\
-consteval {																			\
-	constexpr auto ordersDataRI = Meta::CreateOrdersData<^ ON>();			\
-	constexpr auto paramsDataI = Meta::CreateParamsData<^ FN, ordersDataRI.imag>();	\
-	Meta::CreateArguments<paramsDataI>();											\
+#define META_CREATE_ARGUMENTS(ON, FN)													\
+																						\
+META_DEFINE_NAMESPACE_HELPERS(ON, FN)													\
+																						\
+consteval {																				\
+	using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON);									\
+	using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN);									\
+																						\
+	constexpr auto ordersDataRI = Meta::CreateOrdersData<ON_Helper>();					\
+	Meta::meta::compiler.print("CREATE_ARGUMENTS: Created orders data.");				\
+	constexpr auto paramsDataI = Meta::CreateParamsData<FN_Helper, ordersDataRI.imag>();\
+	Meta::meta::compiler.print("CREATE_ARGUMENTS: Created params data.");				\
+	Meta::CreateArguments<paramsDataI>();												\
+	Meta::meta::compiler.print("CREATE_ARGUMENTS: Created arguments.");					\
 }
 // END #define META_CREATE_ARGUMENTS(ON, FN)
 
 #define META_CALL_FUNCTIONS_OPTIMIZED(ON, FN)													\
 consteval {																						\
-	constexpr auto ordersDataRI = Meta::CreateOrdersData<^ ON>();								\
-	constexpr auto paramsData = Meta::CreateParamsData<^ FN, ordersDataRI.imag>();				\
-	constexpr auto funcsDataRI = Meta::CreateFuncsData<^ FN>(paramsData, ordersDataRI);			\
-	Meta::meta::compiler.print("Created functions data.");										\
+	using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON);											\
+	using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN);											\
+																								\
+	constexpr auto ordersDataRI = Meta::CreateOrdersData<ON_Helper>();							\
+	Meta::meta::compiler.print("CALL_FUNCTIONS_OPTIMIZED: Created orders data.");				\
+	constexpr auto paramsDataI = Meta::CreateParamsData<FN_Helper, ordersDataRI.imag>();		\
+	Meta::meta::compiler.print("CALL_FUNCTIONS_OPTIMIZED: Created params data.");				\
+	constexpr auto funcsDataRI = Meta::CreateFuncsData<^ FN, ordersDataRI.imag, paramsDataI>();	\
+	Meta::meta::compiler.print("CALL_FUNCTIONS_OPTIMIZED: Created functions data.");			\
 																								\
 	Meta::CallFuncs<funcsDataRI.imag,															\
 					funcsDataRI.real.funcs,														\
 					META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN)>();							\
 																								\
-	Meta::meta::compiler.print("Listing function calls in optimized order from header file:");	\
+	Meta::meta::compiler.print("CALL_FUNCTIONS_OPTIMIZED: "										\
+		"Listing function calls in optimized order from header file : ");						\
 	for (int i = 0; i < funcsDataRI.real.funcs.size(); ++i)										\
 		Meta::meta::compiler.print(Meta::meta::name_of(Meta::meta::type_of(						\
 			funcsDataRI.imag.metas[META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN)[i]]			\
