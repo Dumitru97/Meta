@@ -16,5 +16,5 @@ list(TRANSFORM header_files PREPEND "src/")
 
 add_executable (meta_gen_test ${header_files})
 
-set_target_properties(meta_gen_test PROPERTIES CXX_STANDARD 20)
+set_target_properties(meta_gen_test PROPERTIES CXX_STANDARD 23)
 target_compile_definitions(meta_gen_test PRIVATE OUTPUT_DIRECTORY_NO_SLASH="${CMAKE_CURRENT_SOURCE_DIR}/../meta_test/include/simulation" CONSOLE_INPUT)

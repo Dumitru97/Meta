@@ -52,53 +52,57 @@ namespace meta = std::experimental::meta;
 #define META_PRECOMPUTE_FUNC_IDXS(ON, FN)																	\
 																											\
 META_DEFINE_NAMESPACE_HELPERS(ON, FN)																		\
-																											\
-inline int MetaOptimToFileHeaderFunc ## ON ## FN () {														\
-	consteval {																								\
-		using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON);													\
-		using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN);													\
-																											\
-		constexpr auto ordersDataRI = Meta::CreateOrdersData<ON_Helper>();									\
-		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created orders data.");							\
-		constexpr auto paramsDataI = Meta::CreateParamsData<FN_Helper, ordersDataRI.imag>();				\
-		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created params data.");							\
-		constexpr auto funcsDataRI = Meta::CreateFuncsData<^ FN, ordersDataRI.imag, paramsDataI>();			\
-		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created functions data.");						\
-																											\
-		->fragment {																						\
-			using OrdersDataRealType [[maybe_unused]] = decltype(%{ ordersDataRI.real });					\
-			using FuncsDataRealType [[maybe_unused]] = decltype(%{ funcsDataRI.real });						\
-			constexpr auto ordersDataReal = %{ ordersDataRI.real };											\
-			constexpr auto funcsDataReal = %{ funcsDataRI.real };											\
-			auto ordersCmpSwapMats = CreateOrdersCmpSwapMats(ordersDataReal);								\
-			auto funcsCmpSwapMats = CreateFuncsCmpSwapMats(ordersCmpSwapMats, funcsDataReal);				\
-																											\
-			std::tuple input{ ordersDataReal, funcsDataReal, ordersCmpSwapMats, funcsCmpSwapMats };			\
-			auto newFuncsDataReal = Meta::SimulatedAnnealing<												\
-				Meta::SAFunctionOrderSettings<OrdersDataRealType, FuncsDataRealType,						\
-											  decltype(ordersCmpSwapMats), decltype(funcsCmpSwapMats)>		\
-			>(input);																						\
-																											\
-			WriteIdxsToFile(newFuncsDataReal,																\
-							META_PRECOMPUTE_HEADER_FILENAME(ON, FN),										\
-							META_STRINGIFY(META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN))					\
-							);																				\
-		};																									\
-	}																										\
-	return 0;																								\
-}																											\
+META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN)																		\
 																											\
 namespace Meta																								\
 {																											\
 inline int MetaOptimCleanFile ## ON ## FN = DeleteIdxHeaderFile(META_PRECOMPUTE_HEADER_FILENAME(ON, FN));	\
-inline int MetaOptimToFile ## ON ## FN = MetaOptimToFileHeaderFunc ## ON ## FN ();							\
+inline int MetaOptimToFile ## ON ## FN = META_OPTIM_TO_FILE_FUNC(ON, FN)(identity{}, true);					\
 }
 // END #define META_PRECOMPUTE_FUNC_IDXS(ON, FN)	
 
-//Print(paramsDataI);													
-//constexpr auto funcsDataRI = Meta::CreateFuncsData<^ FN>(paramsDataI, ordersDataRI);				
-//Meta::meta::compiler.print("Created functions data.");												
+#define META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN)																	\
+inline int MetaOptimToFileHeaderFunc ## ON ## FN (auto SAInputPreprocess, bool write) {							\
+	consteval {																									\
+		using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON);														\
+		using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN);														\
+																												\
+		constexpr auto ordersDataRI = Meta::CreateOrdersData<ON_Helper>();										\
+		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created orders data.");								\
+		constexpr auto paramsDataI = Meta::CreateParamsData<FN_Helper, ordersDataRI.imag>();					\
+		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created params data.");								\
+		constexpr auto funcsDataRI = Meta::CreateFuncsData<^ FN, ordersDataRI.imag, paramsDataI>();				\
+		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created functions data.");							\
+																												\
+		->fragment {																							\
+			using OrdersDataRealType [[maybe_unused]] = decltype(%{ ordersDataRI.real });						\
+			using FuncsDataRealType [[maybe_unused]] = decltype(%{ funcsDataRI.real });							\
+			constexpr auto ordersDataReal = %{ ordersDataRI.real };												\
+			constexpr auto funcsDataReal = %{ funcsDataRI.real };												\
+			auto ordersCmpSwapMats = CreateOrdersCmpSwapMats(ordersDataReal);									\
+			auto funcsCmpSwapMats = CreateFuncsCmpSwapMats(ordersCmpSwapMats, funcsDataReal);					\
+																												\
+			std::optional<Meta::SAFunctionOrder::SAParams> saParams;											\
+			std::tuple input{ ordersDataReal, funcsDataReal, ordersCmpSwapMats, funcsCmpSwapMats, saParams };	\
+			[:%{^SAInputPreprocess}:].operator()(input);														\
+																												\
+			auto newFuncsDataReal = Meta::SimulatedAnnealing<													\
+				Meta::SAFunctionOrder::SASettings<OrdersDataRealType, FuncsDataRealType,						\
+											  decltype(ordersCmpSwapMats), decltype(funcsCmpSwapMats)>			\
+			>(input);																							\
+																												\
+			if([:%{^write}:])																					\
+				WriteIdxsToFile(newFuncsDataReal,																\
+								META_PRECOMPUTE_HEADER_FILENAME(ON, FN),										\
+								META_STRINGIFY(META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN))					\
+								);																				\
+		};																										\
+	}																											\
+	return 0;																									\
+}
+// END #define META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN)
 
+#define META_OPTIM_TO_FILE_FUNC(ON, FN) MetaOptimToFileHeaderFunc ## ON ## FN
 
 // Creates variables in the global namespace to be used as function arguments
 #define META_CREATE_ARGUMENTS(ON, FN)													\
@@ -198,5 +202,8 @@ inline void WriteIdxsToFile(const auto& newFuncsDataReal, const char* headerFile
 #define META_CONCAT_IMPL(X, Y) X##Y
 #define META_CONCAT(X, Y) META_CONCAT_IMPL(X, Y)
 
+struct identity {
+	void operator()(const auto&) {}
+};
 
 } // namespace Meta

@@ -40,20 +40,20 @@ namespace Meta
 	// Data types used in consteval contexts //
 	///////////////////////////////////////////
 
-	struct OrdersNameID {
+	struct OrderNameID {
 		sv name;
 		int ID;
 
-		static constexpr bool name_cmp(const OrdersNameID& lsh, const OrdersNameID& rsh) {
+		static constexpr bool name_cmp(const OrderNameID& lsh, const OrderNameID& rsh) {
 			return const_strcmp(lsh.name, rsh.name) < 0;
 		}
 	};
 
 	template<auto orderNamespaceMeta>
-	consteval auto CreateOrdersNameIDs() {
+	consteval auto CreateOrderNameIDs() {
 		constexpr auto orderMetaRange = meta::members_of(orderNamespaceMeta, meta::is_class);
 		constexpr size_t orderCount = size(orderMetaRange);
-		std::array<OrdersNameID, orderCount> nameIDs;
+		std::array<OrderNameID, orderCount> nameIDs;
 
 		// Gather names of all orders
 		for (int orderIdx = 0; meta::info orderMeta : orderMetaRange) {
@@ -64,7 +64,7 @@ namespace Meta
 		}
 
 		// Sort by name for rule binary search
-		std::sort(nameIDs.begin(), nameIDs.end(), OrdersNameID::name_cmp);
+		std::sort(nameIDs.begin(), nameIDs.end(), OrderNameID::name_cmp);
 
 		return nameIDs;
 	}
@@ -72,15 +72,15 @@ namespace Meta
 	// Structure passed through stages to provide const chars* as template parameters
 	// Holds sorted names of orders
 	template<typename orderNsHelper>
-	struct OrdersNameIDsHelper {
+	struct OrderNameIDsHelper {
 		static constexpr auto nameIDs 
-			= CreateOrdersNameIDs<orderNsHelper::meta>();
+			= CreateOrderNameIDs<orderNsHelper::meta>();
 	};
 
 	template<size_t orderCount, typename orderNsHelper>
 	struct OrdersDataImag {
 		std::array<meta::info, orderCount> metas{};
-		using nameIDsHelper = OrdersNameIDsHelper<orderNsHelper>;
+		using nameIDsHelper = OrderNameIDsHelper<orderNsHelper>;
 
 		static constexpr int count = orderCount;
 	};
@@ -148,13 +148,13 @@ namespace Meta
 			int currRule = 0; // Index of rule/base for current order symbol
 			for (auto rule : ruleMetaRange) {
 				const char* ruleNameStr = meta::name_of(meta::type_of(rule));
-				OrdersNameID ruleName{ {ruleNameStr, const_strlen(ruleNameStr) }, -1};
+				OrderNameID ruleName{ {ruleNameStr, const_strlen(ruleNameStr) }, -1};
 
 				// Binary search rule by name in nameID
 				auto iter = lower_bound(ordersImagType::nameIDsHelper::nameIDs.begin(),
 										ordersImagType::nameIDsHelper::nameIDs.end(),
 										ruleName,
-										OrdersNameID::name_cmp);
+										OrderNameID::name_cmp);
 				auto ruleIdx = iter->ID; // Namespace order
 
 				ordersReal.rule_data(orderIdx, currRule) = ruleIdx;
@@ -180,7 +180,7 @@ namespace Meta
 	};
 
 	//returns e1 < e2, e2 < e1
-	std::pair<char, char> OrdersCmp(const auto& expanded_bases, int primary, int secondary) {
+	inline std::pair<char, char> OrdersCmp(const auto& expanded_bases, int primary, int secondary) {
 		if (primary == secondary)
 			return { 3, 3 };
 
@@ -201,12 +201,12 @@ namespace Meta
 		return { 1, 1 };
 	}
 
-	bool And(const std::pair<char, char>& pair) {
+	inline bool And(const std::pair<char, char>& pair) {
 		return pair.first && pair.second;
 	}
 
 	// Add all bases recursively
-	void AddBasesFrom(const auto& ordersReal, auto& vec, int idx) {
+	inline void AddBasesFrom(const auto& ordersReal, auto& vec, int idx) {
 		// For each base/rule add their bases/rules
 		for (int i = 0; i < ordersReal.rule_size(idx); ++i) {
 			const int base_idx = ordersReal.rule_data(idx, i);
@@ -216,7 +216,7 @@ namespace Meta
 		}
 	}
 
-	void ComputeOrdersCmp(auto& ordersCmpSwapMats, const auto& ordersReal) {
+	inline void ComputeOrdersCmp(auto& ordersCmpSwapMats, const auto& ordersReal) {
 		using order_t = typename std::remove_cvref_t<decltype(ordersReal)>::order_t;
 		constexpr const int orderCount = ordersReal.count;
 
@@ -248,7 +248,7 @@ namespace Meta
 		}
 	}
 
-	auto CreateOrdersCmpSwapMats(const auto& ordersReal) {
+	inline auto CreateOrdersCmpSwapMats(const auto& ordersReal) {
 		constexpr const int orderCount = ordersReal.count;
 
 		OrdersCmpSwapMats<orderCount> ordersCmpSwapMats;

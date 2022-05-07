@@ -19,8 +19,8 @@ if (CMAKE_GENERATOR MATCHES "Visual Studio")
 						"SHELL:-Xclang -Wno-deprecated-enum-enum-conversion"
 	) #-mavx2 -Xclang -O3
 else()
-	set_target_properties(meta_test PROPERTIES CXX_STANDARD 20)
-	set_target_properties(meta_test_precompute PROPERTIES CXX_STANDARD 20)
+	set_target_properties(meta_test PROPERTIES CXX_STANDARD 23)
+	set_target_properties(meta_test_precompute PROPERTIES CXX_STANDARD 23)
 	set(compiler_flags -std=c++20 -freflection -mavx2 -fconstexpr-steps 1000000000 -Wno-deprecated-enum-enum-conversion) #-mavx2 -Xclang -O3
 endif()
 

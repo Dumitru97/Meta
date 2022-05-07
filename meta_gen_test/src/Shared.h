@@ -187,3 +187,35 @@ std::string UsingAlias(const char* alias, const char* subject) {
 std::string UsingAlias(const std::string& alias, const char* subject) {
 	return std::format("using {} = {};\n\n", alias, subject);
 }
+
+template<typename T>
+struct QuoteContainer {
+	const T& cont;
+};
+
+template<typename T>
+QuoteContainer(const T& cont)->QuoteContainer<std::remove_cvref_t<T>>;
+
+template<typename T>
+struct std::formatter<QuoteContainer<T>>
+{
+	template<typename ParseContext>
+	constexpr auto parse(ParseContext& ctx) {
+		return ctx.begin();
+	}
+
+	constexpr auto fmt(auto ctxIt, auto contIt, auto contEnd) {
+		if (contIt == contEnd)
+			return ctxIt;
+
+		return fmt(std::format_to(ctxIt, R"(, "{}")", *contIt), contIt + 1, contEnd);
+	}
+
+	template<typename FormatContext>
+	constexpr auto format(const QuoteContainer<T>& quoteCont, FormatContext& ctx) {
+		if (quoteCont.cont.empty())
+			return ctx.out();
+
+		return fmt(std::format_to(ctx.out(), R"("{}")", *quoteCont.cont.begin()), quoteCont.cont.begin() + 1, quoteCont.cont.end());
+	}
+};

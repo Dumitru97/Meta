@@ -10,10 +10,10 @@ void InitArgumentVariables(int acts, int objs) {
 	InitVariables(acts, objs);
 }
 
-void CallDefaultOrder1() {
-	DefaultCallOrder1();
+void CallDefaultOrder1Wrapper() {
+	CallDefaultOrder1();
 }
 
-void CallDefaultOrder2() {
-	DefaultCallOrder2();
+void CallDefaultOrder2Wrapper() {
+	CallDefaultOrder2();
 }

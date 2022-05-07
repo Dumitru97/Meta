@@ -96,6 +96,48 @@ namespace Meta
 	};
 
 
+	
+	////////////////////////////////////
+	// Data types used in any context //
+	////////////////////////////////////
+
+	struct FuncNameID {
+		sv name;
+		int ID;
+
+		static constexpr bool name_cmp(const FuncNameID& lsh, const FuncNameID& rsh) {
+			return const_strcmp(lsh.name, rsh.name) < 0;
+		}
+	};
+
+	template<auto funcsNamespaceMeta>
+	consteval auto CreateFuncNameIDs() {
+		constexpr auto funcMetaRange = meta::members_of(funcsNamespaceMeta, meta::is_function);
+		constexpr size_t funcCount = size(funcMetaRange);
+		std::array<FuncNameID, funcCount> nameIDs;
+
+		// Gather names of all funcs
+		for (int funcIdx = 0; meta::info funcMeta : funcMetaRange) {
+			nameIDs[funcIdx].name.str = meta::name_of(funcMeta);
+			nameIDs[funcIdx].name.len = const_strlen(nameIDs[funcIdx].name.str);
+			nameIDs[funcIdx].ID = funcIdx;
+			++funcIdx;
+		}
+
+		// Sort by name for rule binary search
+		std::sort(nameIDs.begin(), nameIDs.end(), FuncNameID::name_cmp);
+
+		return nameIDs;
+	}
+
+	// Holds sorted names of funcs
+	template<typename funcsNsHelper>
+	struct FuncNameIDsHelper {
+		static constexpr auto nameIDs
+			= CreateFuncNameIDs<funcsNsHelper::meta>();
+	};
+	
+
 
 	/////////////////////////////////////////
 	// Resulting output type of this stage //
@@ -113,9 +155,9 @@ namespace Meta
 	// Output function of this stage //
 	///////////////////////////////////
 
-	template<auto namespaceMeta, auto ordersDataImag, auto paramsDataImag>
+	template<auto funcsNamespaceMeta, auto ordersDataImag, auto paramsDataImag>
 	consteval auto CreateFuncsData() {
-		constexpr auto funcMetaRange = meta::members_of(namespaceMeta, meta::is_function);
+		constexpr auto funcMetaRange = meta::members_of(funcsNamespaceMeta, meta::is_function);
 
 		constexpr size_t funcCount = size(funcMetaRange);
 		constexpr size_t paramIdxsStorageSize = CalcTotalParamAndOrderCount(funcMetaRange);
@@ -144,10 +186,10 @@ namespace Meta
 				if (orderCount == 0) {
 					// Find param idx in paramsData for current function parameter
 					const auto& paramsNameIDs = decltype(paramsDataImag)::nameIDsHelper::nameIDs;
-					ParamsNameID value = { .cleanName = clean_name(paramMeta),
+					ParamNameID value = { .cleanName = clean_name(paramMeta),
 										   .ID = -1,
 										   .isPtr = meta::has_pointer_type(paramMeta) };
-					auto it = binary_search_it(paramsNameIDs.begin(), paramsNameIDs.end(), value, ParamsNameID::name_cmp);
+					auto it = binary_search_it(paramsNameIDs.begin(), paramsNameIDs.end(), value, ParamNameID::name_cmp);
 
 					// isParam?
 					if (it != paramsNameIDs.end()) {
@@ -159,9 +201,9 @@ namespace Meta
 
 				// Find order idx in ordersData for current function parameter
 				const auto& ordersNameIDs = decltype(ordersDataImag)::nameIDsHelper::nameIDs;
-				OrdersNameID value = { .name = { meta::name_of(meta::type_of(paramMeta)), const_strlen(value.name.str) },
+				OrderNameID value = { .name = { meta::name_of(meta::type_of(paramMeta)), const_strlen(value.name.str) },
 									   .ID = -1 };
-				auto it = binary_search_it(ordersNameIDs.begin(), ordersNameIDs.end(), value, OrdersNameID::name_cmp);
+				auto it = binary_search_it(ordersNameIDs.begin(), ordersNameIDs.end(), value, OrderNameID::name_cmp);
 				
 				auto orderIdx = std::distance(ordersNameIDs.begin(), it);
 				funcsDataReal.paramIdxsStorage[storeIdxOffset + funcParamIdx++] = orderIdx;
@@ -191,7 +233,7 @@ namespace Meta
 	};
 
 	// Returns {f1 < f2, f2 < f1}
-	std::pair<bool, bool> FuncOrdersCmp(const auto& ordersCmpSwapMats, const auto& funcsDataReal, const int fidx1, const int fidx2) {
+	inline std::pair<bool, bool> FuncOrdersCmp(const auto& ordersCmpSwapMats, const auto& funcsDataReal, const int fidx1, const int fidx2) {
 		if (fidx1 == fidx2)
 			return { true, true };
 
@@ -236,7 +278,7 @@ namespace Meta
 		return { smaller1, smaller2 };
 	}
 
-	auto CreateFuncsCmpSwapMats(const auto& ordersCmpSwapMats, const auto& funcsDataReal) {
+	inline auto CreateFuncsCmpSwapMats(const auto& ordersCmpSwapMats, const auto& funcsDataReal) {
 		constexpr auto funcCount = funcsDataReal.count;
 		FuncsCmpSwapMats<funcCount> funcsCmpSwapMats;
 

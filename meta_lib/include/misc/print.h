@@ -58,7 +58,7 @@ namespace Meta
         int tabs;
     };
 
-    std::ostream& operator<<(std::ostream& os, const Indent& ind) {
+    inline std::ostream& operator<<(std::ostream& os, const Indent& ind) {
         if (ind.tabs)
             return os << std::setw(ind.tabs) << std::setfill('\t') << "";
         else

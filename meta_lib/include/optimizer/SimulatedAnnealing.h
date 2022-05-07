@@ -111,11 +111,13 @@ namespace Meta
 				break;
 		}
 
+		auto output = set.TransformOutput(sol);
+
 		auto cost2 = set.Cost(sol);
 		std::cout << "New Cost: " << cost2 << "\n";
-		std::cout << std::format("SimulatedAnnealing - Initial cost: {}, New cost: {}, Diff: {}\n", initcost, cost, initcost - cost);
+		std::cout << std::format("SimulatedAnnealing - Initial cost(minimum valid ordering): {}, New cost: {}, Diff: {}\n", initcost, cost, initcost - cost);
 
-		return set.TransformOutput(sol);
+		return output;
 	}
 
 } // namespace Meta

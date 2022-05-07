@@ -8,8 +8,8 @@ using namespace std::chrono;
 // Defined in MetaTU.cpp
 void CallOptimizedOrder();
 void InitArgumentVariables(int acts, int objs);
-void CallDefaultOrder1();
-void CallDefaultOrder2();
+void CallDefaultOrder1Wrapper();
+void CallDefaultOrder2Wrapper();
 
 // Prototypes
 void TestWith(int acts, int objs, int reps);
@@ -64,10 +64,10 @@ template<CallOrderType callOrderType>
 void RunSimulation(int reps) {
 	if constexpr (callOrderType == DEFAULT1)
 		for (int i = 0; i < reps; ++i)
-			CallDefaultOrder1();
+			CallDefaultOrder1Wrapper();
 	else if constexpr (callOrderType == DEFAULT2)
 		for (int i = 0; i < reps; ++i)
-			CallDefaultOrder2();
+			CallDefaultOrder2Wrapper();
 	else if constexpr (callOrderType == OPTIMIZED)
 		for (int i = 0; i < reps; ++i)
 			CallOptimizedOrder();

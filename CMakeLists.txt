@@ -18,7 +18,7 @@ ExternalProject_Add(
     INSTALL_COMMAND ""
     DEPENDS Vc
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-               -DCMAKE_CXX_STANDARD=20
+               -DCMAKE_CXX_STANDARD=23
                -DCMAKE_GENERATOR_TOOLSET=ClangCL
                -DCMAKE_C_COMPILER=C:/LLVM/bin/clang.exe
                -DCMAKE_CXX_COMPILER=C:/LLVM/bin/clang++.exe
@@ -34,7 +34,7 @@ ExternalProject_Add(
     INSTALL_COMMAND ""
     DEPENDS Vc meta_lib meta_gen_test
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-               -DCMAKE_CXX_STANDARD=20
+               -DCMAKE_CXX_STANDARD=23
                -DCMAKE_GENERATOR_TOOLSET=ClangCL
                -DCMAKE_C_COMPILER=C:/LLVM/bin/clang.exe
                -DCMAKE_CXX_COMPILER=C:/LLVM/bin/clang++.exe
