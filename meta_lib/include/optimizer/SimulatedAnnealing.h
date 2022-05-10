@@ -86,8 +86,6 @@ namespace Meta
 		set.InitSchedules(temp, reps);
 
 		auto cost = set.Cost(sol);
-		const auto initcost = cost;
-		(void)initcost;
 
 		for (int k = 0;;) {
 			int m = 0;
@@ -112,11 +110,6 @@ namespace Meta
 		}
 
 		auto output = set.TransformOutput(sol);
-
-		auto cost2 = set.Cost(sol);
-		std::cout << "New Cost: " << cost2 << "\n";
-		std::cout << std::format("SimulatedAnnealing - Initial cost(minimum valid ordering): {}, New cost: {}, Diff: {}\n", initcost, cost, initcost - cost);
-
 		return output;
 	}
 

@@ -5,7 +5,7 @@
 
 template<typename FuncNameArrType>
 struct DefaultOrderInputPreprocess {
-	void operator()(auto& input) {
+	constexpr auto operator()(auto input) const {
 		// Set SA params so that it isn't run but the cost is displayed
 		auto& funcsData = std::get<1>(input);
 		auto& optionalParams = std::get<4>(input);
@@ -19,7 +19,7 @@ struct DefaultOrderInputPreprocess {
 		std::vector<Meta::FuncNameID> defaultOrderFuncNameIDs(defNameArr.size());
 		for (int idx = 0; auto& defNameID : defaultOrderFuncNameIDs) {
 			defNameID = Meta::FuncNameID{ .name = { .str = defNameArr[idx],
-													.len = (int)strlen(defNameArr[idx]) },
+													.len = (int)Meta::const_strlen(defNameArr[idx]) },
 										  .ID = idx };
 			++idx;
 		}
@@ -38,9 +38,11 @@ struct DefaultOrderInputPreprocess {
 
 		// Copy the buffer into funcsData
 		std::copy(functionDataBuffer.begin(), functionDataBuffer.end(), funcsData.funcs.begin());
+
+		return input;
 	}
 
-	FuncNameArrType& defaultOrderFuncNameArr;
+	const FuncNameArrType& defaultOrderFuncNameArr;
 };
 
 template<typename T>
@@ -49,8 +51,11 @@ DefaultOrderInputPreprocess(const T& cont)->DefaultOrderInputPreprocess<std::rem
 int main() {
 	//Default order1 cost
 	std::cout << "\n\n" << "DefaultOrder1" << "\n";
-	META_OPTIM_TO_FILE_FUNC(ON, FN)(DefaultOrderInputPreprocess{ defaultOrder1 }, false);
-	
+	constexpr auto defaultOrderInputPreprocess1 = DefaultOrderInputPreprocess{ defaultOrder1 };
+	META_OPTIM_TO_FILE_FUNC(ON, FN)< defaultOrderInputPreprocess1 >(false);
+
+	//Default order2 cost
 	std::cout << "\n\n" << "DefaultOrder2" << "\n";
-	META_OPTIM_TO_FILE_FUNC(ON, FN)(DefaultOrderInputPreprocess{ defaultOrder2 }, false);
+	constexpr auto defaultOrderInputPreprocess2 = DefaultOrderInputPreprocess{ defaultOrder2 };
+	META_OPTIM_TO_FILE_FUNC(ON, FN) < defaultOrderInputPreprocess2 > (false);
 }

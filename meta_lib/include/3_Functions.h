@@ -85,21 +85,9 @@ namespace Meta
 
 
 
-	///////////////////////////////////////////
-	// Data types used in consteval contexts //
-	///////////////////////////////////////////
-
-	template<size_t funcCount>
-	struct FuncsDataImag {
-		std::array<meta::info, funcCount> metas{};
-		inline static constexpr int count = funcCount;
-	};
-
-
-	
 	////////////////////////////////////
-	// Data types used in any context //
-	////////////////////////////////////
+// Data types used in any context //
+////////////////////////////////////
 
 	struct FuncNameID {
 		sv name;
@@ -107,6 +95,10 @@ namespace Meta
 
 		static constexpr bool name_cmp(const FuncNameID& lsh, const FuncNameID& rsh) {
 			return const_strcmp(lsh.name, rsh.name) < 0;
+		}
+
+		static constexpr bool id_cmp(const FuncNameID& lsh, const FuncNameID& rsh) {
+			return lsh.ID < rsh.ID;
 		}
 	};
 
@@ -120,7 +112,7 @@ namespace Meta
 		for (int funcIdx = 0; meta::info funcMeta : funcMetaRange) {
 			nameIDs[funcIdx].name.str = meta::name_of(funcMeta);
 			nameIDs[funcIdx].name.len = const_strlen(nameIDs[funcIdx].name.str);
-			nameIDs[funcIdx].ID = funcIdx;
+			nameIDs[funcIdx].ID       = funcIdx;
 			++funcIdx;
 		}
 
@@ -135,6 +127,20 @@ namespace Meta
 	struct FuncNameIDsHelper {
 		static constexpr auto nameIDs
 			= CreateFuncNameIDs<funcsNsHelper::meta>();
+	};
+
+
+
+	///////////////////////////////////////////
+	// Data types used in consteval contexts //
+	///////////////////////////////////////////
+
+	template<size_t funcCount, typename funcNamespaceHelper>
+	struct FuncsDataImag {
+		std::array<meta::info, funcCount> metas{};
+		using nameIDsHelper = FuncNameIDsHelper<funcNamespaceHelper>;
+
+		inline static constexpr int count = funcCount;
 	};
 	
 
@@ -155,15 +161,15 @@ namespace Meta
 	// Output function of this stage //
 	///////////////////////////////////
 
-	template<auto funcsNamespaceMeta, auto ordersDataImag, auto paramsDataImag>
+	template<typename funcNamespaceHelper, auto ordersDataImag, auto paramsDataImag>
 	consteval auto CreateFuncsData() {
-		constexpr auto funcMetaRange = meta::members_of(funcsNamespaceMeta, meta::is_function);
+		constexpr auto funcMetaRange = meta::members_of(funcNamespaceHelper::meta, meta::is_function);
 
-		constexpr size_t funcCount = size(funcMetaRange);
+		constexpr size_t funcCount            = size(funcMetaRange);
 		constexpr size_t paramIdxsStorageSize = CalcTotalParamAndOrderCount(funcMetaRange);
 
 		FuncsDataReal<funcCount, paramIdxsStorageSize> funcsDataReal{};
-		FuncsDataImag<funcCount> funcsDataImag{};
+		FuncsDataImag<funcCount, funcNamespaceHelper> funcsDataImag{};
 
 		// Gather data to be used in the order optimization step
 		int storeIdxOffset = 0;
@@ -193,21 +199,21 @@ namespace Meta
 
 					// isParam?
 					if (it != paramsNameIDs.end()) {
-						auto paramIdx = std::distance(paramsNameIDs.begin(), it);
-						funcsDataReal.paramIdxsStorage[storeIdxOffset + funcParamIdx++] = paramIdx;
+						funcsDataReal.paramIdxsStorage[storeIdxOffset + funcParamIdx++] = it->ID;
 						continue;
 					}
 				}
 
 				// Find order idx in ordersData for current function parameter
 				const auto& ordersNameIDs = decltype(ordersDataImag)::nameIDsHelper::nameIDs;
-				OrderNameID value = { .name = { meta::name_of(meta::type_of(paramMeta)), const_strlen(value.name.str) },
+				const char* orderName = meta::name_of(meta::type_of(paramMeta));
+				OrderNameID value = { .name = { orderName, const_strlen(orderName) },
 									   .ID = -1 };
 				auto it = binary_search_it(ordersNameIDs.begin(), ordersNameIDs.end(), value, OrderNameID::name_cmp);
-				
-				auto orderIdx = std::distance(ordersNameIDs.begin(), it);
-				funcsDataReal.paramIdxsStorage[storeIdxOffset + funcParamIdx++] = orderIdx;
+				if (it == ordersNameIDs.end())
+					throw;
 
+				funcsDataReal.paramIdxsStorage[storeIdxOffset + funcParamIdx++] = it->ID;
 				++orderCount;
 			}
 

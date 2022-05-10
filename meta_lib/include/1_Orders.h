@@ -47,6 +47,10 @@ namespace Meta
 		static constexpr bool name_cmp(const OrderNameID& lsh, const OrderNameID& rsh) {
 			return const_strcmp(lsh.name, rsh.name) < 0;
 		}
+
+		static constexpr bool id_cmp(const OrderNameID& lsh, const OrderNameID& rsh) {
+			return lsh.ID < rsh.ID;
+		}
 	};
 
 	template<auto orderNamespaceMeta>
@@ -59,7 +63,7 @@ namespace Meta
 		for (int orderIdx = 0; meta::info orderMeta : orderMetaRange) {
 			nameIDs[orderIdx].name.str = meta::name_of(meta::type_of(orderMeta));
 			nameIDs[orderIdx].name.len = const_strlen(nameIDs[orderIdx].name.str);
-			nameIDs[orderIdx].ID = orderIdx;
+			nameIDs[orderIdx].ID       = orderIdx;
 			++orderIdx;
 		}
 
@@ -73,7 +77,7 @@ namespace Meta
 	// Holds sorted names of orders
 	template<typename orderNsHelper>
 	struct OrderNameIDsHelper {
-		static constexpr auto nameIDs 
+		static constexpr auto nameIDs
 			= CreateOrderNameIDs<orderNsHelper::meta>();
 	};
 
@@ -116,13 +120,13 @@ namespace Meta
 	consteval auto CreateOrdersData() {
 		// Order symbols are stored in struct/class names
 		// Count all struct/class declarations in namespace
-		constexpr auto orderNamespaceMeta = orderNamespaceHelper::meta;
-		constexpr auto orderMetaRange = meta::members_of(orderNamespaceMeta, meta::is_class);
-		constexpr size_t orderCount = size(orderMetaRange);
+		constexpr auto   orderNamespaceMeta = orderNamespaceHelper::meta;
+		constexpr auto   orderMetaRange     = meta::members_of(orderNamespaceMeta, meta::is_class);
+		constexpr size_t orderCount         = size(orderMetaRange);
 
 		// Order rules are based on inheritance
 		// Count all struct/class declarations in namespace + all their bases(which define the rules)
-		constexpr size_t orderRulesTotal = CalcOrderRulesStorageSize<orderNamespaceMeta>();
+		constexpr size_t orderRulesTotal   = CalcOrderRulesStorageSize<orderNamespaceMeta>();
 		constexpr size_t ordersStorageSize = orderCount + orderRulesTotal;
 
 		OrdersDataReal<orderCount, ordersStorageSize> ordersReal{};
@@ -135,11 +139,11 @@ namespace Meta
 
 		int rule_storage_pos = 0;
 		for (int orderIdx = 0; meta::info orderMeta : orderMetaRange) {
-			auto ruleMetaRange = meta::base_spec_range(orderMeta);
+			auto ruleMetaRange     = meta::base_spec_range(orderMeta);
 			auto ruleMetaRangeSize = size(ruleMetaRange);
 
 			// Prepare rule storage
-			ordersReal.rules       [orderIdx]         =	rule_storage_pos;
+			ordersReal.rules       [orderIdx]		  = rule_storage_pos;
 			ordersReal.rule_storage[rule_storage_pos] = ruleMetaRangeSize; // Per symbol, first elem is count of rules followed by rules
 			rule_storage_pos += ruleMetaRangeSize + 1; // Advance by count of rules/bases + size for preparing the next iteration
 
@@ -148,7 +152,7 @@ namespace Meta
 			int currRule = 0; // Index of rule/base for current order symbol
 			for (auto rule : ruleMetaRange) {
 				const char* ruleNameStr = meta::name_of(meta::type_of(rule));
-				OrderNameID ruleName{ {ruleNameStr, const_strlen(ruleNameStr) }, -1};
+				OrderNameID ruleName{ {ruleNameStr, const_strlen(ruleNameStr) }, -1 };
 
 				// Binary search rule by name in nameID
 				auto iter = lower_bound(ordersImagType::nameIDsHelper::nameIDs.begin(),
@@ -180,9 +184,9 @@ namespace Meta
 	};
 
 	//returns e1 < e2, e2 < e1
-	inline std::pair<char, char> OrdersCmp(const auto& expanded_bases, int primary, int secondary) {
+	inline std::pair<bool, bool> OrdersCmp(const auto& expanded_bases, int primary, int secondary) {
 		if (primary == secondary)
-			return { 3, 3 };
+			return { true, true };
 
 		//std::vector<order_t>
 		auto& prim_exp_rules = expanded_bases[primary];
@@ -191,18 +195,14 @@ namespace Meta
 		//primary smaller than secondary
 		for (int j = 0; j < sec_exp_rules.size(); ++j)
 			if (primary == sec_exp_rules[j])
-				return { 1, 0 };
+				return { true, false };
 
 		//secondary smaller than primary
 		for (int i = 0; i < prim_exp_rules.size(); ++i)
 			if (prim_exp_rules[i] == secondary)
-				return { 0, 1 };
+				return { false, true };
 
-		return { 1, 1 };
-	}
-
-	inline bool And(const std::pair<char, char>& pair) {
-		return pair.first && pair.second;
+		return { true, true };
 	}
 
 	// Add all bases recursively
@@ -231,19 +231,12 @@ namespace Meta
 
 		// Compute cmp and swap matrices
 		for (int i = 0; i < orderCount; ++i) {
-			for (int j = 0; j < i; ++j) {
+			for (int j = i; j < orderCount; ++j) {
 				const auto& cmp_pair = OrdersCmp(expanded_bases, i, j);
-				ordersCmpSwapMats.swap[i][j] = And(cmp_pair); // i < j && j < i aka canSwap?
-				ordersCmpSwapMats.cmp[i][j] = cmp_pair.first; // if i < j
-			}
-
-			ordersCmpSwapMats.swap[i][i] = 1; // i < i
-			ordersCmpSwapMats.cmp[i][i] = 3; // ==
-
-			for (int j = i + 1; j < orderCount; ++j) {
-				const auto& cmp_pair = OrdersCmp(expanded_bases, i, j);
-				ordersCmpSwapMats.swap[i][j] = And(cmp_pair);
-				ordersCmpSwapMats.cmp[i][j] = 1; //because i was declared before j
+				ordersCmpSwapMats.cmp[i][j] = cmp_pair.first;
+				ordersCmpSwapMats.cmp[j][i] = cmp_pair.second;
+				ordersCmpSwapMats.swap[i][j] = cmp_pair.first && cmp_pair.second;
+				ordersCmpSwapMats.swap[j][i] = cmp_pair.first && cmp_pair.second;
 			}
 		}
 	}

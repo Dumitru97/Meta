@@ -10,14 +10,19 @@ namespace Meta
 
 	struct ParamNameID {
 		sv cleanName;
+		int ID_untruc;
 		int ID;
 		bool isPtr;
 
-		static consteval bool id_cmp(const ParamNameID& lhs, const ParamNameID& rhs) {
+		static constexpr bool id_cmp(const ParamNameID& lhs, const ParamNameID& rhs) {
 			return lhs.ID < rhs.ID;
 		}
+		
+		static constexpr bool id_untruc_cmp(const ParamNameID& lhs, const ParamNameID& rhs) {
+			return lhs.ID_untruc < rhs.ID_untruc;
+		}
 
-		static consteval bool name_cmp(const ParamNameID& lhs, const ParamNameID& rhs) {
+		static constexpr bool name_cmp(const ParamNameID& lhs, const ParamNameID& rhs) {
 			auto res = const_strcmp(lhs.cleanName, rhs.cleanName);
 			if (res == 0)
 				return (lhs.isPtr - rhs.isPtr) < 0;
@@ -25,7 +30,7 @@ namespace Meta
 			return res < 0;
 		}
 
-		static consteval bool name_eq(const ParamNameID& lhs, const ParamNameID& rhs) {
+		static constexpr bool name_eq(const ParamNameID& lhs, const ParamNameID& rhs) {
 			return (const_strcmp(lhs.cleanName, rhs.cleanName) == 0) && (lhs.isPtr == rhs.isPtr);
 		}
 
@@ -54,8 +59,9 @@ namespace Meta
 		for (int paramIdx = 0; meta::info funcMeta : funcMetaRange) {
 			for (meta::info paramMeta : meta::param_range(funcMeta)) {
 				nameIDs[paramIdx].cleanName = clean_name(paramMeta);
-				nameIDs[paramIdx].ID = paramIdx;
-				nameIDs[paramIdx].isPtr = meta::has_pointer_type(paramMeta);
+				nameIDs[paramIdx].ID_untruc = paramIdx;
+				nameIDs[paramIdx].ID        = paramIdx;
+				nameIDs[paramIdx].isPtr     = meta::has_pointer_type(paramMeta);
 				++paramIdx;
 			}
 		}
@@ -81,11 +87,11 @@ namespace Meta
 
 	template<typename funcNamespaceHelper, typename ordersDataImagType>
 	consteval auto CreateParamNameIDs() {
-		constexpr auto funcNamespaceMeta = funcNamespaceHelper::meta;
-		constexpr auto funcMetaRange = meta::members_of(funcNamespaceMeta, meta::is_function);
+		constexpr auto   funcNamespaceMeta       = funcNamespaceHelper::meta;
+		constexpr auto   funcMetaRange           = meta::members_of(funcNamespaceMeta, meta::is_function);
 		constexpr size_t totalParamAndOrderCount = CalcTotalParamAndOrderCount(funcMetaRange);
 
-		constexpr auto result = CreateParamNameIDsUntrunc<totalParamAndOrderCount, ordersDataImagType>(funcMetaRange);
+		constexpr auto result         = CreateParamNameIDsUntrunc<totalParamAndOrderCount, ordersDataImagType>(funcMetaRange);
 		constexpr auto truncated_size = result.second;
 
 		auto& uniqueNameIDsUntruncated = result.first;
@@ -94,8 +100,9 @@ namespace Meta
 		// Copy unique nameIDs from extra size storage to actual size storage
 		for (int i = 0; i < truncated_size; ++i) {
 			nameIDs[i].cleanName = uniqueNameIDsUntruncated[i].cleanName;
-			nameIDs[i].ID = uniqueNameIDsUntruncated[i].ID;
-			nameIDs[i].isPtr = uniqueNameIDsUntruncated[i].isPtr;
+			nameIDs[i].ID_untruc = uniqueNameIDsUntruncated[i].ID_untruc;
+			nameIDs[i].ID        = i;
+			nameIDs[i].isPtr     = uniqueNameIDsUntruncated[i].isPtr;
 		}
 
 		return nameIDs;
@@ -132,8 +139,8 @@ namespace Meta
 
 	template<typename funcNamespaceHelper, auto ordersDataImag>
 	consteval auto CreateParamsData() {
-		constexpr auto funcNamespaceMeta = funcNamespaceHelper::meta;
-		constexpr auto funcMetaRange = meta::members_of(funcNamespaceMeta, meta::is_function);
+		constexpr auto   funcNamespaceMeta       = funcNamespaceHelper::meta;
+		constexpr auto   funcMetaRange           = meta::members_of(funcNamespaceMeta, meta::is_function);
 		constexpr size_t totalParamAndOrderCount = CalcTotalParamAndOrderCount(funcMetaRange);
 
 		// Compute nameIDs
@@ -150,7 +157,7 @@ namespace Meta
 
 		// Copy unique params from allMetas to output
 		for (int i = 0; i < truncated_size; ++i)
-			paramsDataImag.metas[i] = allMetas[nameIDsHelper::nameIDs[i].ID];
+			paramsDataImag.metas[i] = allMetas[nameIDsHelper::nameIDs[i].ID_untruc];
 
 		return paramsDataImag;
 	}

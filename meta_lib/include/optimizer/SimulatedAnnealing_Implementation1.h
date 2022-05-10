@@ -66,6 +66,8 @@ namespace Meta
 			std::mt19937 gen;
 			std::uniform_int_distribution<int> swapUnifDistr;
 
+			FuncsDataType initFuncsData;
+			float initcost;
 			//Member functions for the CRTP interface
 		public:
 			UnusedType TransformInput(const auto& ord_funcs_data_and_mat_tuple_and_saparams) {
@@ -75,7 +77,8 @@ namespace Meta
 				ordersCmpSwapMats = &std::get<2>(ord_funcs_data_and_mat_tuple_and_saparams);
 				funcsCmpSwapMats = &std::get<3>(ord_funcs_data_and_mat_tuple_and_saparams);
 				auto optionalParams = std::get<4>(ord_funcs_data_and_mat_tuple_and_saparams);
-
+				
+				initFuncsData = funcsData;
 				if (optionalParams)
 					sa_params = optionalParams.value();
 
@@ -84,6 +87,25 @@ namespace Meta
 					span<int> vec = funcsData.f_params(i);
 					std::sort(vec.data, vec.data + vec.len);
 				}
+
+				// Check if ordering is valid and initialize funcs_perm
+				bool isValidOrdering = true;
+				for (int i = 0; i < funcCount; ++i) {
+					for (int j = i; j < funcCount; ++j) {
+						// Check if smaller than all
+						if (!fcmp_mat[fdata.funcs[i].ID][fdata.funcs[j].ID]) {
+							isValidOrdering = false;
+							std::cout << "Invalid ordering. Func " << fdata.funcs[i].ID << " bigger than " << fdata.funcs[j].ID << "\n";
+							break;
+						}
+					}
+
+					if (!isValidOrdering)
+						break;
+
+					funcs_perm[fdata.funcs[i].ID] = i;
+				}
+				//std::sort(fdata.funcs.begin(), fdata.funcs.end(), [](const auto& a, const auto& b) { return a.ID < b.ID;  });
 
 				// Compute delta_swap_mat
 				constexpr int delta_swap_row_offset = 2;
@@ -109,24 +131,6 @@ namespace Meta
 					++col_pos;
 				}
 				delta_swappable_func_count = col_pos;
-
-				// Check if ordering is valid
-				bool isValidOrdering = true;
-				for (int i = 0; i < funcCount; ++i) {
-					for (int j = i; j < funcCount; ++j) {
-						// Check if smaller than all
-						if (!fcmp_mat[fdata.funcs[i].ID][fdata.funcs[j].ID]) {
-							isValidOrdering = false;
-							std::cout << "Invalid ordering. Func " << fdata.funcs[i].ID << " bigger than " << fdata.funcs[j].ID << "\n";
-							break;
-						}
-					}
-
-					if (!isValidOrdering)
-						break;
-
-					funcs_perm[i] = i;
-				}
 
 				if (!isValidOrdering) {
 					std::cout << "Reordering function into a valid ordering" << "\n";
@@ -156,6 +160,9 @@ namespace Meta
 					}
 				}
 
+				// Compute initial cost for difference
+				initcost = Cost(UnusedType{});
+
 				// Sanity check funcs_perm
 				for (int i = 0; i < funcCount; ++i) {
 					int pos = funcs_perm[i];
@@ -163,10 +170,10 @@ namespace Meta
 						throw;
 				}
 
-				std::cout << "Valid input ordering:\n";
-				for (int i = 0; i < funcCount; ++i)
-					std::cout << funcsData.funcs[i].ID << " ";
-				std::cout << "\n";
+				//std::cout << "Valid input ordering:\n";
+				//for (int i = 0; i < funcCount; ++i)
+				//	std::cout << funcsData.funcs[i].ID << " ";
+				//std::cout << "\n";
 
 				return {};
 			}
@@ -355,10 +362,19 @@ namespace Meta
 						throw;
 				}
 
-				std::cout << "New ordering:\n";
-				for (int i = 0; i < funcCount; ++i)
-					std::cout << funcsData.funcs[i].ID << " ";
-				std::cout << "\n";
+				auto cost = Cost(UnusedType{});
+				auto costdiff = initcost - cost;
+				std::cout << std::format("SimulatedAnnealing - Valid input cost: {}, Output cost: {}, Diff: {}\n", initcost, cost, costdiff);
+
+				if (costdiff < -1E-3f) {
+					std::cout << "Cost increase. Using returning input instead of output order." << "\n";
+					return initFuncsData;
+				}
+
+				//std::cout << "New ordering:\n";
+				//for (int i = 0; i < funcCount; ++i)
+				//	std::cout << funcsData.funcs[i].ID << " ";
+				//std::cout << "\n";
 
 				return fdata;
 			}

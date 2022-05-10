@@ -57,12 +57,13 @@ META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN)																		\
 namespace Meta																								\
 {																											\
 inline int MetaOptimCleanFile ## ON ## FN = DeleteIdxHeaderFile(META_PRECOMPUTE_HEADER_FILENAME(ON, FN));	\
-inline int MetaOptimToFile ## ON ## FN = META_OPTIM_TO_FILE_FUNC(ON, FN)(identity{}, true);					\
+inline int MetaOptimToFile ## ON ## FN = META_OPTIM_TO_FILE_FUNC(ON, FN)<identity{}>(true);					\
 }
 // END #define META_PRECOMPUTE_FUNC_IDXS(ON, FN)	
 
 #define META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN)																	\
-inline int MetaOptimToFileHeaderFunc ## ON ## FN (auto SAInputPreprocess, bool write) {							\
+template<auto SAInputPreprocessFunctor>																			\
+inline int MetaOptimToFileHeaderFunc ## ON ## FN (bool write) {													\
 	consteval {																									\
 		using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON);														\
 		using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN);														\
@@ -71,7 +72,7 @@ inline int MetaOptimToFileHeaderFunc ## ON ## FN (auto SAInputPreprocess, bool w
 		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created orders data.");								\
 		constexpr auto paramsDataI = Meta::CreateParamsData<FN_Helper, ordersDataRI.imag>();					\
 		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created params data.");								\
-		constexpr auto funcsDataRI = Meta::CreateFuncsData<^ FN, ordersDataRI.imag, paramsDataI>();				\
+		constexpr auto funcsDataRI = Meta::CreateFuncsData<FN_Helper, ordersDataRI.imag, paramsDataI>();		\
 		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created functions data.");							\
 																												\
 		->fragment {																							\
@@ -82,9 +83,9 @@ inline int MetaOptimToFileHeaderFunc ## ON ## FN (auto SAInputPreprocess, bool w
 			auto ordersCmpSwapMats = CreateOrdersCmpSwapMats(ordersDataReal);									\
 			auto funcsCmpSwapMats = CreateFuncsCmpSwapMats(ordersCmpSwapMats, funcsDataReal);					\
 																												\
-			std::optional<Meta::SAFunctionOrder::SAParams> saParams;											\
-			std::tuple input{ ordersDataReal, funcsDataReal, ordersCmpSwapMats, funcsCmpSwapMats, saParams };	\
-			[:%{^SAInputPreprocess}:].operator()(input);														\
+			std::optional<Meta::SAFunctionOrder::SAParams> saParams;												\
+			std::tuple pre_input{ ordersDataReal, funcsDataReal, ordersCmpSwapMats, funcsCmpSwapMats, saParams };	\
+			std::tuple input = SAInputPreprocessFunctor.operator()(pre_input);										\
 																												\
 			auto newFuncsDataReal = Meta::SimulatedAnnealing<													\
 				Meta::SAFunctionOrder::SASettings<OrdersDataRealType, FuncsDataRealType,						\
@@ -122,28 +123,28 @@ consteval {																				\
 }
 // END #define META_CREATE_ARGUMENTS(ON, FN)
 
-#define META_CALL_FUNCTIONS_OPTIMIZED(ON, FN)													\
-consteval {																						\
-	using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON);											\
-	using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN);											\
-																								\
-	constexpr auto ordersDataRI = Meta::CreateOrdersData<ON_Helper>();							\
-	Meta::meta::compiler.print("CALL_FUNCTIONS_OPTIMIZED: Created orders data.");				\
-	constexpr auto paramsDataI = Meta::CreateParamsData<FN_Helper, ordersDataRI.imag>();		\
-	Meta::meta::compiler.print("CALL_FUNCTIONS_OPTIMIZED: Created params data.");				\
-	constexpr auto funcsDataRI = Meta::CreateFuncsData<^ FN, ordersDataRI.imag, paramsDataI>();	\
-	Meta::meta::compiler.print("CALL_FUNCTIONS_OPTIMIZED: Created functions data.");			\
-																								\
-	Meta::CallFuncs<funcsDataRI.imag,															\
-					funcsDataRI.real.funcs,														\
-					META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN)>();							\
-																								\
-	Meta::meta::compiler.print("CALL_FUNCTIONS_OPTIMIZED: "										\
-		"Listing function calls in optimized order from header file : ");						\
-	for (int i = 0; i < funcsDataRI.real.funcs.size(); ++i)										\
-		Meta::meta::compiler.print(Meta::meta::name_of(Meta::meta::type_of(						\
-			funcsDataRI.imag.metas[META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN)[i]]			\
-		)));																					\
+#define META_CALL_FUNCTIONS_OPTIMIZED(ON, FN)															\
+consteval {																								\
+	using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON);													\
+	using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN);													\
+																										\
+	constexpr auto ordersDataRI = Meta::CreateOrdersData<ON_Helper>();									\
+	Meta::meta::compiler.print("CALL_FUNCTIONS_OPTIMIZED: Created orders data.");						\
+	constexpr auto paramsDataI = Meta::CreateParamsData<FN_Helper, ordersDataRI.imag>();				\
+	Meta::meta::compiler.print("CALL_FUNCTIONS_OPTIMIZED: Created params data.");						\
+	constexpr auto funcsDataRI = Meta::CreateFuncsData<FN_Helper, ordersDataRI.imag, paramsDataI>();	\
+	Meta::meta::compiler.print("CALL_FUNCTIONS_OPTIMIZED: Created functions data.");					\
+																										\
+	Meta::CallFuncs<funcsDataRI.imag,																	\
+					funcsDataRI.real.funcs,																\
+					META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN)>();									\
+																										\
+	Meta::meta::compiler.print("CALL_FUNCTIONS_OPTIMIZED: "												\
+		"Listing function calls in optimized order from header file : ");								\
+	for (int i = 0; i < funcsDataRI.real.funcs.size(); ++i)												\
+		Meta::meta::compiler.print(Meta::meta::name_of(Meta::meta::type_of(								\
+			funcsDataRI.imag.metas[META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN)[i]]					\
+		)));																							\
 }
 // END #define META_CALL_FUNCTIONS_OPTIMIZED(ON, FN)
 
@@ -203,7 +204,103 @@ inline void WriteIdxsToFile(const auto& newFuncsDataReal, const char* headerFile
 #define META_CONCAT(X, Y) META_CONCAT_IMPL(X, Y)
 
 struct identity {
-	void operator()(const auto&) {}
+	constexpr auto operator()(const auto& X) const { return X;  }
 };
+
+//consteval void Debug(auto ordersRealIn, auto ordersImagIn, auto paramsImagIn, auto funcsRealIn, auto funcsImagIn, auto ordersCmpSwapMatsIn, auto funcsCmpSwapMatsIn) {
+//	->fragment { std::cout << "///////////////////////////////\n" << "/////////////DEBUG/////////////\n" << "///////////////////////////////\n"; };
+//	constexpr auto& orderNameIDs = decltype(ordersImagIn)::nameIDsHelper::nameIDs;
+//	Meta::Print(ordersRealIn);
+//	Meta::Print(ordersImagIn);
+//	Meta::Print(ordersCmpSwapMatsIn);
+//	Meta::Print(orderNameIDs);
+//
+//	->fragment {
+//		constexpr auto ordersReal = % { ordersRealIn };
+//		constexpr auto ordersCmpSwapMats = % { ordersCmpSwapMatsIn };
+//
+//		auto orderNameIDsReal = decltype(% { ordersImagIn })::nameIDsHelper::nameIDs;
+//		std::sort(orderNameIDsReal.begin(), orderNameIDsReal.end(), Meta::OrderNameID::id_cmp);
+//
+//		for (int i = 0; i < orderNameIDsReal.size(); ++i) {
+//			std::cout << orderNameIDsReal[i].name.str << " : ";
+//			int orderID = orderNameIDsReal[i].ID;
+//
+//			int storageSize = ordersReal.rule_size(orderID);
+//			for (int j = 0; j < storageSize; ++j) {
+//				int ruleID = ordersReal.rule_data(orderID, j);
+//				std::cout << orderNameIDsReal[ruleID].name.str << ", ";
+//			}
+//			std::cout << "\n";
+//		}
+//		std::cout << "\n";
+//
+//		struct print_mat {
+//			void operator()(auto& mat, auto& orderNameIDsReal) {
+//				int i, j;
+//				for (i = 0; i < mat.size(); ++i) {
+//					std::cout << std::format("Row {}\n", i);
+//					for (j = 0; j < mat[i].size(); ++j)
+//					{
+//						std::cout << std::format("[{0}][{1}]: {2}  {3}  {4}\n", i, j, orderNameIDsReal[i].name.str, mat[i][j] == 1 ? "smaller" : "bigger", orderNameIDsReal[j].name.str);
+//					}
+//					std::cout << "\n";
+//				}
+//				std::cout << "\n\n";
+//			}
+//		};
+//
+//		std::cout << "Orderds CMP mat\n";
+//		auto ordersCmp = ordersCmpSwapMats.cmp;
+//		print_mat{}(ordersCmp, orderNameIDsReal);
+//
+//
+//		std::cout << "Orderds SWAP mat\n";
+//		auto ordersSwap = ordersCmpSwapMats.swap;
+//		print_mat{}(ordersSwap, orderNameIDsReal);
+//	};
+//
+//	constexpr auto& paramNameIDs = decltype(paramsImagIn)::nameIDsHelper::nameIDs;
+//	Meta::Print(paramsImagIn);
+//	Meta::Print(paramNameIDs);
+//
+//	constexpr auto& funcNameIDs = decltype(funcsImagIn)::nameIDsHelper::nameIDs;
+//	Meta::Print(funcsRealIn);
+//	Meta::Print(funcsImagIn);
+//	Meta::Print(funcsCmpSwapMatsIn);
+//	Meta::Print(funcNameIDs);
+//
+//	->fragment {
+//		constexpr auto funcsReal = % { funcsRealIn };
+//
+//		auto funcNameIDsReal = decltype(% { funcsImagIn })::nameIDsHelper::nameIDs;
+//		std::sort(funcNameIDsReal.begin(), funcNameIDsReal.end(), Meta::FuncNameID::id_cmp);
+//
+//		auto orderNameIDsReal = decltype(% { ordersImagIn })::nameIDsHelper::nameIDs;
+//		std::sort(orderNameIDsReal.begin(), orderNameIDsReal.end(), Meta::OrderNameID::id_cmp);
+//
+//		auto paramNameIDsReal = decltype(% { paramsImagIn })::nameIDsHelper::nameIDs;
+//		std::sort(paramNameIDsReal.begin(), paramNameIDsReal.end(), Meta::ParamNameID::id_cmp);
+//
+//		for (int i = 0; i < funcNameIDsReal.size(); ++i) {
+//			int funcID = funcsReal.funcs[i].ID;
+//			std::cout << "ID:" << funcID << " " << funcNameIDsReal[funcID].name.str << "(";
+//
+//			int j = 0;
+//			auto paramSpan = funcsReal.f_params(funcID);
+//			for (j = 0; j < paramSpan.len; ++j) {
+//				std::cout << paramNameIDsReal[paramSpan[j]].cleanName.str << ", ";
+//			}
+//
+//			auto orderSpan = funcsReal.f_orders(funcID);
+//			for (j = 0; j < orderSpan.len; ++j) {
+//				std::cout << orderNameIDsReal[orderSpan[j]].name.str << ", ";
+//			}
+//
+//			std::cout << ")\n";
+//		}
+//		std::cout << "\n";
+//	};
+//}
 
 } // namespace Meta

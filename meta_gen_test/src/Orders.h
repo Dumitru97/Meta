@@ -9,6 +9,7 @@ namespace Orders {
 		return std::format(
 			"struct OObject{0}MovedBy {{}};" nl
 			"struct OObject{0}Wrap : OObject{0}MovedBy {{}};" nl
+			"struct OObject{0}Draw : OObject{0}Wrap {{}};" nl
 			"struct OObject{0}UpdateCurrent : OObject{0}Wrap {{}};" nl2
 			, obj_idx);
 	}
@@ -26,9 +27,6 @@ namespace Orders {
 		
 		file << "#pragma once" nl;
 		file << OpenNamespace("ON");
-
-		file << "struct OObjectAnyWrap {};" nl
-			    "struct OObjectAnyWrapDone : OObjectAnyWrap {};" nl2;
 
 		for (int k = 1; k <= obj_num; ++k)
 			file << ObjectOrders(k);
