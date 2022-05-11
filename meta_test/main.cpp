@@ -16,18 +16,18 @@ void TestWith(int acts, int objs, int reps);
 
 int main() {
 
-	std::vector<int> acts_arr{ 2, 4, 8, 16 };
-	std::vector<int> objs_arr{ 2, 4, 8, 16 };
-	std::vector<int> reps_arr{ 100'000 };
+	std::vector<int> acts_arr{ 1, 2, 3, 4, 6, 8, 10, 16 };
+	std::vector<int> objs_arr{ 1, 2, 3, 4, 6, 8, 10, 16 };
+	int work = 1'000'000;
 
 	for (int i = 0; i < acts_arr.size(); ++i)
-		for (int j = 0; j < objs_arr.size(); ++j)
-			for (int k = 0; k < reps_arr.size(); ++k) {
-				const int acts = acts_arr[i];
-				const int objs = objs_arr[j];
-				const int reps = reps_arr[k];
-				TestWith(acts, objs, reps);
-			}
+		for (int j = 0; j < objs_arr.size(); ++j) {
+			const int acts = acts_arr[i];
+			const int objs = objs_arr[j];
+			const int reps = work / std::log(acts_arr[i] + objs_arr[j]);
+
+			TestWith(acts, objs, reps);
+		}
 
 #ifdef _WIN32
 	system("pause");
