@@ -65,24 +65,37 @@ using Objects = std::vector<ObjectWrapper>;
 		std::ofstream file(OUTPUT_DIR "World.h");
 		file <<
 R"(#pragma once
-#include <math.h>
 
-constexpr int world_width_int = 20;
-constexpr int world_height_int = 20;
+constexpr int world_width_bits = 5;
+constexpr int world_height_bits = 5;
 
-constexpr float world_width = world_width_int - FLT_EPSILON * 10;
-constexpr float world_height = world_height_int - FLT_EPSILON * 10;
+constexpr int world_width = 1 << world_width_bits;
+constexpr int world_height = 1 << world_height_bits;
 
-inline float fmodf_width(float val) {
-	return fmodf(val, world_width);
+template<int bits>
+inline int mod_int_pow_2(int val) {
+    return val & ((1 << bits) - 1);
 }
 
-inline float fmodf_height(float val) {
-	return fmodf(val, world_height);
+template<int bits>
+inline float mod_float_pow_2(float val) {
+    const float frac = val - (int)val;
+    const int mod = mod_int_pow_2<bits>((int)val);
+
+    const int neg = (1 << bits) * ((frac < -FLT_EPSILON * 100) && (mod == 0));
+    return neg + mod + frac;
 }
 
-inline unsigned world_mat[world_height_int][world_width_int]{};
-using World = unsigned(*)[world_width_int];
+inline float mod_width(float val) {
+	return mod_float_pow_2<world_width_bits>(val);
+}
+
+inline float mod_height(float val) {
+	return mod_float_pow_2<world_height_bits>(val);
+}
+
+inline unsigned world_mat[world_height][world_width]{};
+using World = unsigned(*)[world_width];
 inline World world = world_mat;
 )";
 	}

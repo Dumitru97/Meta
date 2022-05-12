@@ -60,11 +60,8 @@ R"(
 	for (auto& obj_wrapper : objs{0}) {{
 		auto& objn = obj_wrapper.obj_next;
 
-		objn.pos.x = objn.pos.x.apply(fmodf_width);
-		objn.pos.x(Vc::isnegative(objn.pos.x)) += world_width;
-
-		objn.pos.y = objn.pos.y.apply(fmodf_height);
-		objn.pos.y(Vc::isnegative(objn.pos.y)) += world_height;
+		objn.pos.x = objn.pos.x.apply(mod_width);
+		objn.pos.y = objn.pos.y.apply(mod_height);
 	}}
 }})" nl2;
 
