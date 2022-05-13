@@ -17,28 +17,26 @@ namespace Objects {
 		if(print_function_name)
 			fmt += tab R"(std::cout << __PRETTY_FUNCTION__ << "\n";)" nl2;
 
-		fmt += tab "//constexpr float dist_tresh = {2}f;";
+		fmt += tab "constexpr float dist_tresh = {2}f;";
 		fmt +=
 R"(
 	for (const auto& act : acts{1})
 		for (int i = 0; i < objs{0}.size(); ++i) {{
-			(void)act;
-			//const auto& obj = objs{0}[i].obj;
-			//auto& obj_next = objs{0}[i].obj_next;
+			const auto& obj = objs{0}[i].obj;
+			auto& obj_next = objs{0}[i].obj_next;
 
-			//if (distsq(act.pos, obj.pos) > dist_tresh * dist_tresh) {{
+			const auto mask = distsq(act.pos, obj.pos) > dist_tresh * dist_tresh;
 )";
 		if (axis == Axis::X)
-			fmt += tab4 "objs{0}[i].obj_next.pos.x += {3}f;" nl;
+			fmt += tab3 "obj_next.pos.x(mask) += {3}f;" nl;
 		else if (axis == Axis::Y)
-			fmt += tab4 "objs{0}[i].obj_next.pos.y += {3}f;" nl;
+			fmt += tab3 "obj_next.pos.y(mask) += {3}f;" nl;
 		else //if (axis == Axis::XY)
-			fmt += tab4 "objs{0}[i].obj_next.pos.x += {3}f;" nl
-				   tab4 "objs{0}[i].obj_next.pos.y += {4}f;" nl;
+			fmt += tab3 "obj_next.pos.x(mask) += {3}f;" nl
+				   tab3 "obj_next.pos.y(mask) += {4}f;" nl;
 
-		fmt += tab3 "//}}" nl
-			tab2 "}}" nl
-			tab "}}" nl2;
+		fmt += tab2 "}}" nl
+			   tab "}}" nl2;
 
 		// Getting formatted string
 		if (axis == Axis::X)

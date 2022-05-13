@@ -163,6 +163,14 @@ namespace Meta
 		return last;
 	}
 
+	template<int i, int len>
+	consteval void for_loop(auto lambda) {
+		if constexpr (i < len) {
+			lambda.template operator()<i> ();
+			for_loop<i + 1, len>(lambda);
+		}
+	}
+
 } // namespace Meta
 
 namespace std {

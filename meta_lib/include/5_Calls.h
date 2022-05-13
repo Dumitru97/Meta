@@ -62,10 +62,9 @@ namespace Meta
 
 	template<auto funcsDataImag, auto funcsArr, auto funcsIdxArr>
 	consteval void CallFuncs() {
-		template for (constexpr auto funcIdx : funcsIdxArr) {
+		for_loop<0, funcsIdxArr.size()>([]<int funcIdx>() consteval {
 			constexpr auto paramsSize = funcsArr[funcIdx].param_count();
 			constexpr auto ordersSize = funcsArr[funcIdx].order_count();
-
 			constexpr auto fullRange = meta::param_range(funcsDataImag.metas[funcIdx]);
 
 			constexpr auto paramRange = meta::param_range(fullRange.begin(), std::next(fullRange.begin(), paramsSize));
@@ -79,7 +78,7 @@ namespace Meta
 			(void)orderArr;
 
 			PackParamsAndCall<^ paramArr, ^ orderArr>(funcsDataImag.metas[funcIdx]);
-		}
+		});
 	}
 
 } // namespace Meta

@@ -27,16 +27,16 @@ void PrintResultTable(const std::vector<int>& acts_arr,
 	                  const std::vector<std::pair<float, float>>& result_mat);
 
 int main() {
-	std::vector<int> acts_arr{ 1, 2, 3, 4, 6, 8 };
-	std::vector<int> objs_arr{ 1, 2, 3, 4, 6, 8 };
+	std::vector<int> acts_arr{ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024 };
+	std::vector<int> objs_arr{ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024 };
 	std::vector<std::pair<float,float>> result_mat;
-	const int work = 2'000'000;
+	const int work = 8;
 
 	for (int i = 0; i < acts_arr.size(); ++i)
 		for (int j = 0; j < objs_arr.size(); ++j) {
 			const int acts = acts_arr[i];
 			const int objs = objs_arr[j];
-			const int reps = work / (std::log(acts_arr[i] + objs_arr[j]) * std::log(acts_arr[i] + objs_arr[j]));
+			const int reps = work * (acts_arr.back() / acts_arr[i]) * (objs_arr.back() / objs_arr[j]);
 
 			auto results = TestWith(acts, objs, reps);
 			result_mat.push_back(results);
@@ -180,7 +180,6 @@ void PrintResultTable(const std::vector<int>& acts_arr,
 			r += color_add;
 
 		//Get prev
-		CONSOLE_SCREEN_BUFFER_INFO prev;
 		DWORD dwMode = 0;
 		GetConsoleMode(hConsole, &dwMode);
 

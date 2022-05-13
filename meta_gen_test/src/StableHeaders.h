@@ -18,13 +18,12 @@ struct position {
 	float_v y;
 };
 
-//float distsq(const position& p1, const position& p2) {
-//	return (p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y);
-//}
+auto distsq(const position& p1, const position& p2) {
+	const auto xd = (p1.x - p2.x);
+	const auto yd = (p1.y - p2.y);
+	return xd * xd + yd * yd;
+}
 
-//float dist(const position& p1, const position& p2) {
-//	return sqrtf(distsq(p1, p2));
-//}
 )";
 	}
 

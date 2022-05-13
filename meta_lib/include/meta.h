@@ -142,9 +142,9 @@ consteval {																								\
 	Meta::meta::compiler.print("CALL_FUNCTIONS_OPTIMIZED: "												\
 		"Listing function calls in optimized order from header file : ");								\
 	for (int i = 0; i < funcsDataRI.real.funcs.size(); ++i)												\
-		Meta::meta::compiler.print(Meta::meta::name_of(Meta::meta::type_of(								\
+		Meta::meta::compiler.print(Meta::meta::name_of(													\
 			funcsDataRI.imag.metas[META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN)[i]]					\
-		)));																							\
+		));																								\
 }
 // END #define META_CALL_FUNCTIONS_OPTIMIZED(ON, FN)
 
@@ -204,7 +204,7 @@ inline void WriteIdxsToFile(const auto& newFuncsDataReal, const char* headerFile
 #define META_CONCAT(X, Y) META_CONCAT_IMPL(X, Y)
 
 struct identity {
-	constexpr auto operator()(const auto& X) const { return X;  }
+	constexpr auto operator()(const auto& X) const { return X; }
 };
 
 //consteval void Debug(auto ordersRealIn, auto ordersImagIn, auto paramsImagIn, auto funcsRealIn, auto funcsImagIn, auto ordersCmpSwapMatsIn, auto funcsCmpSwapMatsIn) {
