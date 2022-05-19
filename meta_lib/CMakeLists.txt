@@ -9,6 +9,7 @@ set(header_files "meta.h"
                  "optimizer/CostFunctions.h"
                  "optimizer/SimulatedAnnealing.h"
                  "optimizer/SimulatedAnnealing_Implementation1.h"
+                 "optimizer/BranchAndBound1.h"
                  "misc/meta_utils.h"
                  "misc/print.h"
                  "misc/func_format.h")

@@ -23,8 +23,6 @@ namespace Meta
 			float pow_mult;
 		};
 
-		extern SAParams sa_params;
-
 		template<typename AdditionalFunctionInfo>
 		bool operator<(const function<AdditionalFunctionInfo>& lhs,
 					   const function<AdditionalFunctionInfo>& rhs)
@@ -65,26 +63,25 @@ namespace Meta
 			using FuncsCmpSwapMatsType = std::remove_cvref_t<FuncsCmpSwapMatsTypeIn>;
 			using UnusedType = int;
 
-#define fdata funcsData
-#define delta_func_ID 0
-#define delta_fswaps_count 1
+			static constexpr size_t delta_func_ID = 0;
+			static constexpr size_t delta_fswaps_count = 1;
 
 			// Member variables
 		public:
-			OrdersDataType ordersData;
-			FuncsDataType funcsData;
-			const FuncsCmpSwapMatsType* funcsCmpSwapMats;
-			const OrdersCmpSwapMatsType* ordersCmpSwapMats;
-			static constexpr int funcCount = FuncsDataType::count;
+			SAParams sa_params = { .reps = 100, .temp = 25, .reps_increment = 250, .temp_decrement = 0.08f, .pow_mult = 20 };
 
-#define fswap_mat funcsCmpSwapMats->swap
-#define fcmp_mat  funcsCmpSwapMats->cmp
+			//OrdersDataType odata;
+			FuncsDataType fdata;
+			decltype(fdata.funcs)& funcs = fdata.funcs;
+			FuncsCmpSwapMatsType fmats;
+			//OrdersCmpSwapMatsType omats;
+			static constexpr int funcCount = FuncsDataType::count;
 
 			// Holds for every function all the functions that it can be swapped with. Used in NeighbourDelta().
 			std::array<std::array<int, funcCount + 2 - 1>, funcCount> delta_swap_mat{};	// +2(func id and row size) -1(excluding self swapping)
 			int delta_swappable_func_count{};											// Number of swappable functions in delta_swap_mat
 
-			std::array<int, funcCount> funcs_perm{}; // Use function ID to get the index in funcsData after optimizing
+			std::array<int, funcCount> funcs_perm{}; // Use function ID to get the index in fdata after optimizing
 
 			std::mt19937 gen;
 			std::uniform_int_distribution<int> swapUnifDistr;
@@ -95,19 +92,19 @@ namespace Meta
 		public:
 			UnusedType TransformInput(const auto& ord_funcs_data_and_mat_tuple_and_saparams) {
 				// Copy into member variables
-				ordersData = std::get<0>(ord_funcs_data_and_mat_tuple_and_saparams);
-				funcsData = std::get<1>(ord_funcs_data_and_mat_tuple_and_saparams);
-				ordersCmpSwapMats = &std::get<2>(ord_funcs_data_and_mat_tuple_and_saparams);
-				funcsCmpSwapMats = &std::get<3>(ord_funcs_data_and_mat_tuple_and_saparams);
+				//odata = std::get<0>(ord_funcs_data_and_mat_tuple_and_saparams);
+				fdata = std::get<1>(ord_funcs_data_and_mat_tuple_and_saparams);
+				//omats = std::get<2>(ord_funcs_data_and_mat_tuple_and_saparams);
+				fmats = std::get<3>(ord_funcs_data_and_mat_tuple_and_saparams);
 				auto optionalParams = std::get<4>(ord_funcs_data_and_mat_tuple_and_saparams);
 				
-				initFuncsData = funcsData;
+				initFuncsData = fdata;
 				if (optionalParams)
 					sa_params = optionalParams.value();
 
 				// Sort parameters for Jaccard index calculation
 				for (int i = 0; i < funcCount; ++i) {
-					span<int> vec = funcsData.f_params(i);
+					span<int> vec = fdata.f_params(i);
 					std::sort(vec.data, vec.data + vec.len);
 				}
 
@@ -116,9 +113,9 @@ namespace Meta
 				for (int i = 0; i < funcCount; ++i) {
 					for (int j = i; j < funcCount; ++j) {
 						// Check if smaller than all
-						if (fdata.funcs[i] < fdata.funcs[j] == false) {
+						if (!(funcs[i] < funcs[j])) {
 							isValidOrdering = false;
-							std::cout << "Invalid ordering. Func " << fdata.funcs[i].ID << " bigger than " << fdata.funcs[j].ID << "\n";
+							std::cout << "Invalid ordering. Func " << funcs[i].ID << " bigger than " << funcs[j].ID << "\n";
 							break;
 						}
 					}
@@ -126,9 +123,8 @@ namespace Meta
 					if (!isValidOrdering)
 						break;
 
-					funcs_perm[fdata.funcs[i].ID] = i;
+					funcs_perm[funcs[i].ID] = i;
 				}
-				//std::sort(fdata.funcs.begin(), fdata.funcs.end(), [](const auto& a, const auto& b) { return a.ID < b.ID;  });
 
 				// Compute delta_swap_mat
 				constexpr int delta_swap_row_offset = 2;
@@ -136,11 +132,11 @@ namespace Meta
 				for (int i = 0; i < funcCount; ++i) {
 					int row_pos = delta_swap_row_offset;
 					for (int j = 0; j < i; ++j) {
-						if (fswap_mat[i][j])
+						if (fmats.swap[i][j])
 							delta_swap_mat[col_pos][row_pos++] = j;
 					}
 					for (int j = i + 1; j < funcCount; ++j) {
-						if (fswap_mat[i][j])
+						if (fmats.swap[i][j])
 							delta_swap_mat[col_pos][row_pos++] = j;
 					}
 
@@ -166,15 +162,15 @@ namespace Meta
 
 						// Check if smaller than all
 						for (int j = minIdx; j < funcCount; ++j) {
-							if (fdata.funcs[i] < fdata.funcs[j] == false) {
+							if (!(funcs[i] < funcs[j])) {
 								isMin = false;
 								break;
 							}
 						}
 
 						if (isMin) { // Swap with minIdx if min, otherwise 'i' advances to look for a min func
-							std::swap(fdata.funcs[minIdx], fdata.funcs[i]);
-							funcs_perm[fdata.funcs[minIdx].ID] = minIdx;
+							std::swap(funcs[minIdx], funcs[i]);
+							funcs_perm[funcs[minIdx].ID] = minIdx;
 
 							// Found a min and placed it in minIdx, now 'i' is reset
 							minIdx++;
@@ -189,13 +185,13 @@ namespace Meta
 				// Sanity check funcs_perm
 				for (int i = 0; i < funcCount; ++i) {
 					int pos = funcs_perm[i];
-					if (funcsData.funcs[pos].ID != i)
+					if (funcs[pos].ID != i)
 						throw;
 				}
 
 				//std::cout << "Valid input ordering:\n";
 				//for (int i = 0; i < funcCount; ++i)
-				//	std::cout << funcsData.funcs[i].ID << " ";
+				//	std::cout << funcs[i].ID << " ";
 				//std::cout << "\n";
 
 				return {};
@@ -212,8 +208,8 @@ namespace Meta
 			cost_t Cost(const UnusedType) {
 				cost_t cost = 0.0f;
 				for (int i = 0; i < funcCount - 1; ++i) {
-					const auto& currFunc = fdata.f_params(fdata.funcs[i]);
-					const auto& nextFunc = fdata.f_params(fdata.funcs[i + 1]);
+					const auto& currFunc = fdata.f_params(funcs[i]);
+					const auto& nextFunc = fdata.f_params(funcs[i + 1]);
 					cost += JaccardIndexOfSortedSets(currFunc, nextFunc);
 				}
 
@@ -231,7 +227,7 @@ namespace Meta
 					const cost_t oldCostDelta = GetCostAtMid(fidx1) + GetCostAtMid(fidx2);
 					cost -= oldCostDelta;
 
-					std::swap(fdata.funcs[fidx1], fdata.funcs[fidx2]);
+					std::swap(funcs[fidx1], funcs[fidx2]);
 
 					const cost_t newCostDelta = GetCostAtMid(fidx1) + GetCostAtMid(fidx2);
 					cost += newCostDelta;
@@ -250,7 +246,7 @@ namespace Meta
 					const cost_t oldCostDelta = (this->*El1Func)(fidx1) + (this->*El2Func)(fidx2);
 					cost -= oldCostDelta;
 
-					std::swap(fdata.funcs[fidx1], fdata.funcs[fidx2]);
+					std::swap(funcs[fidx1], funcs[fidx2]);
 
 					const cost_t newCostDelta = (this->*El1Func)(fidx1) + (this->*El2Func)(fidx2);
 					cost += newCostDelta;
@@ -300,7 +296,7 @@ namespace Meta
 
 					int cursor = minIdx + 1;
 					for (; cursor < maxIdx; ++cursor)
-						if (fdata.funcs[cursor] < fdata.funcs[minIdx] == false) // Looking in multiple rows to check if swap is valid
+						if (!(funcs[cursor] < funcs[minIdx])) // Looking in multiple rows to check if swap is valid
 							break;
 					if (cursor == minIdx + 1) { // Didn't move cursor, can't swap with anything
 						validSwap = false;
@@ -316,7 +312,7 @@ namespace Meta
 						validSwap = true;
 						int j = maxIdx - 1;
 						for (; j > minIdx; --j)
-							if (fdata.funcs[maxIdx] < fdata.funcs[j] == false) { // Looking in one row to check if swap is valid
+							if (!(funcs[maxIdx] < funcs[j])) { // Looking in one row to check if swap is valid
 								validSwap = false;
 								maxIdx--;
 								break;
@@ -327,7 +323,7 @@ namespace Meta
 						}
 					}
 
-					origIdx2 = fdata.funcs[maxIdx].ID;
+					origIdx2 = funcs[maxIdx].ID;
 				}
 
 				return { origIdx1, origIdx2 };
@@ -337,7 +333,7 @@ namespace Meta
 				auto& fidx1 = funcs_perm[delta.origIdx1];
 				auto& fidx2 = funcs_perm[delta.origIdx2];
 
-				std::swap(fdata.funcs[fidx1], fdata.funcs[fidx2]);
+				std::swap(funcs[fidx1], funcs[fidx2]);
 				std::swap(fidx1, fidx2);
 			}
 
@@ -369,7 +365,7 @@ namespace Meta
 					bool isMin = true;
 					for (int j = i; j < funcCount; ++j) {
 						// Check if smaller than all
-						if (fdata.funcs[i] < fdata.funcs[j] == false) {
+						if (!(funcs[i] < funcs[j])) {
 							isMin = false;
 							break;
 						}
@@ -381,7 +377,7 @@ namespace Meta
 				// Sanity check funcs_perm
 				for (int i = 0; i < funcCount; ++i) {
 					int pos = funcs_perm[i];
-					if (fdata.funcs[pos].ID != i)
+					if (funcs[pos].ID != i)
 						throw;
 				}
 
@@ -396,7 +392,7 @@ namespace Meta
 
 				//std::cout << "New ordering:\n";
 				//for (int i = 0; i < funcCount; ++i)
-				//	std::cout << funcsData.funcs[i].ID << " ";
+				//	std::cout << funcs[i].ID << " ";
 				//std::cout << "\n";
 
 				return fdata;
@@ -418,8 +414,8 @@ namespace Meta
 			cost_t Cost(const int fstart, const int fcount) {
 				cost_t cost = 0.0f;
 				for (int i = fstart; i < fstart + fcount - 1; ++i) {
-					const auto& currFunc = fdata.f_params(fdata.funcs[i]);
-					const auto& nextFunc = fdata.f_params(fdata.funcs[i + 1]);
+					const auto& currFunc = fdata.f_params(funcs[i]);
+					const auto& nextFunc = fdata.f_params(funcs[i + 1]);
 					cost += JaccardIndexOfSortedSets(currFunc, nextFunc);
 				}
 

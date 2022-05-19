@@ -243,6 +243,9 @@ namespace Meta
 		static inline std::array<std::array<bool, funcCount>, funcCount> cmp{};  // <
 		static inline bool isComputed = false;
 
+		using SwapMatType = decltype(swap);
+		using CmpMatType = decltype(cmp);
+
 		template<typename AdditionalFunctionInfo>
 		friend bool operator<(const function<AdditionalFunctionInfo>& lhs,
 							  const function<AdditionalFunctionInfo>& rhs);

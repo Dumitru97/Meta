@@ -1,6 +1,8 @@
 //#pragma once
 //#include <array>
 //#include <vector>
+//#include <span>
+//#include <queue>
 //
 //namespace Meta
 //{
@@ -11,13 +13,13 @@
 //
 //        template<int N>
 //        struct BBStruct {
-//            void init();
-//
 //            std::array<int, N> best_sol;
 //            std::array<std::array<int, N>, N> fswap;
 //            std::array<std::array<float, N>, N> costm;
 //            std::array<float, N> min_costs;
+//
 //            int sol_num;
+//            bound hb = { FLT_MAX, FLT_MAX, N };
 //
 //            struct bound {
 //                float value;
@@ -34,10 +36,6 @@
 //                    //return (value / sn) > (rhs.value / rhs.sn);
 //                }
 //            };
-//
-//
-//            bound hb = { FLT_MAX, FLT_MAX, N };
-//            //float r = hb / N;
 //
 //            bound calc_lb(float cost_in, std::span<const int> current_options) {
 //                bound lb_cost{ cost_in, cost_in, (int)(N - current_options.size()) };
@@ -58,7 +56,6 @@
 //                };
 //            };
 //
-//#include <queue>
 //            template<typename T>
 //            class ext_priority_queue : public std::priority_queue<T, std::vector<T>, std::greater<T>>
 //            {
@@ -76,7 +73,7 @@
 //
 //                    remove_if([&nth](ctx& ctx) {
 //                        return ctx > nth;
-//                        });
+//                    });
 //                }
 //            };
 //
@@ -183,47 +180,60 @@
 //                        pqueue.pop();
 //                }
 //            }
-//        };
 //
-//        void Init() {
-//            for (int i = 0; i < N; ++i) {
-//                fswap[i][0] = N - 1;
-//                int st = 1;
-//                for (int j = 0; j < N; ++j)
-//                    if (i != j)
-//                        fswap[i][st++] = j;
-//            }
+//            FuncsDataType fdata;
+//            decltype(fdata.funcs)& funcs = fdata.funcs;
+//            FuncsCmpSwapMatsType fmats;
+//            //OrdersCmpSwapMatsType omats;
 //
-//            for (int i = 0; i < N; ++i)
-//                costm[i][i] = FLT_MAX;
-//            min_costs.fill(FLT_MAX);
 //
-//            for (int i = 0; i < N; ++i) {
-//                for (int j = i + 1; j < N; ++j) {
-//                    const float cost = dist(mt);
-//                    costm[i][j] = cost;
-//                    costm[j][i] = cost;
+//            void Init(const auto& ord_funcs_data_and_mat_tuple_and_saparams) {
+//                //odata = std::get<0>(ord_funcs_data_and_mat_tuple_and_saparams);
+//                fdata = std::get<1>(ord_funcs_data_and_mat_tuple_and_saparams);
+//                //omats = std::get<2>(ord_funcs_data_and_mat_tuple_and_saparams);
+//                fmats = std::get<3>(ord_funcs_data_and_mat_tuple_and_saparams);
+//                auto optionalParams = std::get<4>(ord_funcs_data_and_mat_tuple_and_params);
 //
-//                    if (cost < min_costs[i])
-//                        min_costs[i] = cost;
-//                    if (cost < min_costs[j])
-//                        min_costs[j] = cost;
+//                for (int i = 0; i < N; ++i) {
+//                    fswap[i][0] = N - 1;
+//                    int st = 1;
+//                    for (int j = 0; j < N; ++j)
+//                        if (i != j)
+//                            fswap[i][st++] = j;
 //                }
-//            }
-//            //for (int i = 0; i < N; ++i) {
-//            //    for (int j = 0; j < N; ++j)
-//            //        std::cout << costm[i][j] << ' ';
-//            //    std::cout << '\n';
-//            //}
-//            //std::cout << '\n';
-//        }
 //
+//                for (int i = 0; i < N; ++i)
+//                    costm[i][i] = FLT_MAX;
+//                min_costs.fill(FLT_MAX);
+//
+//                for (int i = 0; i < N; ++i) {
+//                    for (int j = i + 1; j < N; ++j) {
+//                        const float cost = dist(mt);
+//                        costm[i][j] = cost;
+//                        costm[j][i] = cost;
+//
+//                        if (cost < min_costs[i])
+//                            min_costs[i] = cost;
+//                        if (cost < min_costs[j])
+//                            min_costs[j] = cost;
+//                    }
+//                }
+//                //for (int i = 0; i < N; ++i) {
+//                //    for (int j = 0; j < N; ++j)
+//                //        std::cout << costm[i][j] << ' ';
+//                //    std::cout << '\n';
+//                //}
+//                //std::cout << '\n';
+//            }
+//
+//        };
 //    } // namespace BBFunctionOrder
 //
 //	template<typename OrdersDataRealType, typename FuncsDataRealType, typename OrdersCmpSwapMatsType, typename FuncsCmpSwapMatsType>
 //	auto BBFunctionOrderOP(const auto& input) {
-//        BBFunctionOrder::Init();
+//        BBFunctionOrder::BBStruct<FuncsDataRealType::count> bb;
 //
-//		return newFuncsDataReal;
+//               bb.Init(input);
+//        return bb.BranchAndBound();
 //	}
 //} // namespace Meta
