@@ -10,8 +10,9 @@ concept is_container = requires(T & cont) {
     cont.end();
 };
 
+template<typename AdditionalFunctionInfo>
 struct functionGetID {
-    const Meta::function& func;
+    const Meta::function<AdditionalFunctionInfo>& func;
 };
 
 template<typename T>
@@ -91,8 +92,8 @@ struct std::formatter<ContainerFormatAdapter<T, AdaptType>>
     }
 };
 
-template<>
-struct std::formatter<functionGetID>
+template<typename AdditionalFunctionInfo>
+struct std::formatter<functionGetID<AdditionalFunctionInfo>>
 {
     template<typename ParseContext>
     constexpr auto parse(ParseContext& ctx) {
@@ -100,7 +101,7 @@ struct std::formatter<functionGetID>
     }
 
     template<typename FormatContext>
-    auto format(const functionGetID& wrapper, FormatContext& ctx) {
+    auto format(const functionGetID<AdditionalFunctionInfo>& wrapper, FormatContext& ctx) {
         return std::format_to(ctx.out(), "{}", wrapper.func.ID);
     }
 };

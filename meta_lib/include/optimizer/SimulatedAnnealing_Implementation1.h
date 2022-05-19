@@ -25,6 +25,26 @@ namespace Meta
 
 		extern SAParams sa_params;
 
+		template<typename AdditionalFunctionInfo>
+		bool operator<(const function<AdditionalFunctionInfo>& lhs,
+					   const function<AdditionalFunctionInfo>& rhs)
+		{
+			using orderNamespaceHelper = typename AdditionalFunctionInfo::orderNamespaceHelper;
+			using funcNamespaceHelper = typename AdditionalFunctionInfo::funcNamespaceHelper;
+			using FuncsCmpSwapMatsType = FuncsCmpSwapMats<AdditionalFunctionInfo::funcCount, orderNamespaceHelper, funcNamespaceHelper>;
+			return FuncsCmpSwapMatsType::cmp[lhs.ID][rhs.ID];
+		}
+
+		template<typename AdditionalFunctionInfo>
+		bool operator<=>(const function<AdditionalFunctionInfo>& lhs,
+						 const function<AdditionalFunctionInfo>& rhs)
+		{
+			using orderNamespaceHelper = typename AdditionalFunctionInfo::orderNamespaceHelper;
+			using funcNamespaceHelper = typename AdditionalFunctionInfo::funcNamespaceHelper;
+			using FuncsCmpSwapMatsType = FuncsCmpSwapMats<AdditionalFunctionInfo::funcCount, orderNamespaceHelper, funcNamespaceHelper>;
+			return FuncsCmpSwapMatsType::swap[lhs.ID][rhs.ID];
+		}
+
 		template<typename OrdersDataRealTypeIn, typename FuncsDataRealTypeIn, typename OrdersCmpSwapMatsTypeIn, typename FuncsCmpSwapMatsTypeIn>
 		struct SASettings : public SimulatedAnnealingSettings<SASettings<OrdersDataRealTypeIn, FuncsDataRealTypeIn, OrdersCmpSwapMatsTypeIn, FuncsCmpSwapMatsTypeIn>>
 		{
@@ -96,7 +116,7 @@ namespace Meta
 				for (int i = 0; i < funcCount; ++i) {
 					for (int j = i; j < funcCount; ++j) {
 						// Check if smaller than all
-						if (!fcmp_mat[fdata.funcs[i].ID][fdata.funcs[j].ID]) {
+						if (fdata.funcs[i] < fdata.funcs[j] == false) {
 							isValidOrdering = false;
 							std::cout << "Invalid ordering. Func " << fdata.funcs[i].ID << " bigger than " << fdata.funcs[j].ID << "\n";
 							break;
@@ -146,7 +166,7 @@ namespace Meta
 
 						// Check if smaller than all
 						for (int j = minIdx; j < funcCount; ++j) {
-							if (!fcmp_mat[fdata.funcs[i].ID][fdata.funcs[j].ID]) {
+							if (fdata.funcs[i] < fdata.funcs[j] == false) {
 								isMin = false;
 								break;
 							}
@@ -280,7 +300,7 @@ namespace Meta
 
 					int cursor = minIdx + 1;
 					for (; cursor < maxIdx; ++cursor)
-						if (!fcmp_mat[fdata.funcs[cursor].ID][fdata.funcs[minIdx].ID]) // Looking in multiple rows to check if swap is valid
+						if (fdata.funcs[cursor] < fdata.funcs[minIdx] == false) // Looking in multiple rows to check if swap is valid
 							break;
 					if (cursor == minIdx + 1) { // Didn't move cursor, can't swap with anything
 						validSwap = false;
@@ -296,7 +316,7 @@ namespace Meta
 						validSwap = true;
 						int j = maxIdx - 1;
 						for (; j > minIdx; --j)
-							if (!fcmp_mat[fdata.funcs[maxIdx].ID][fdata.funcs[j].ID]) { // Looking in one row to check if swap is valid
+							if (fdata.funcs[maxIdx] < fdata.funcs[j] == false) { // Looking in one row to check if swap is valid
 								validSwap = false;
 								maxIdx--;
 								break;
@@ -349,7 +369,7 @@ namespace Meta
 					bool isMin = true;
 					for (int j = i; j < funcCount; ++j) {
 						// Check if smaller than all
-						if (!fcmp_mat[fdata.funcs[i].ID][fdata.funcs[j].ID]) {
+						if (fdata.funcs[i] < fdata.funcs[j] == false) {
 							isMin = false;
 							break;
 						}

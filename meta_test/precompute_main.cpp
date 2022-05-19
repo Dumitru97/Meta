@@ -28,7 +28,8 @@ struct DefaultOrderInputPreprocess {
 		std::sort(defaultOrderFuncNameIDs.begin(), defaultOrderFuncNameIDs.end(), Meta::FuncNameID::name_cmp);
 
 		// Now that names both containers are in the same order, we order funcsData.funcs in the default order into a buffer
-		std::vector<Meta::function> functionDataBuffer(funcsData.count);
+		using functionType = typename decltype(funcsData.funcs)::value_type;
+		std::vector<functionType> functionDataBuffer(funcsData.count);
 		for (int nameIDIdx = 0; nameIDIdx < defNameArr.size(); ++nameIDIdx) {
 			const auto bufferIdx = defaultOrderFuncNameIDs[nameIDIdx].ID;
 			const auto funcDataIdx = funcNameIDs[nameIDIdx].ID;

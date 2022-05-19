@@ -7,7 +7,10 @@ namespace Meta
 	// Data types used in non-consteval contexts //
 	//////////////////////////////////////////////
 
+	template<typename AdditionalInfoIn>
 	struct function {
+		using AdditionalInfo = AdditionalInfoIn;
+
 		int storageIdx; // paramIdxsStorage idx
 		int paramEnd = -1;
 		int orderEnd = -1;
@@ -31,13 +34,15 @@ namespace Meta
 	};
 
 	using param_idx_t = int;
-	template<size_t funcCount, size_t paramIdxsStorageSize_>
+	template<size_t funcCount, size_t paramIdxsStorageSize_, typename AdditionalFunctionInfo>
 	struct FuncsDataReal {
-		std::array<int, paramIdxsStorageSize_> paramIdxsStorage; //el11 ... el21 ...  ....
-		std::array<function, funcCount> funcs{};
+		using functionType = function<AdditionalFunctionInfo>;
 
-		inline static constexpr int count = funcCount;
-		inline static constexpr int paramIdxsStorageSize = paramIdxsStorageSize_;
+		std::array<int, paramIdxsStorageSize_> paramIdxsStorage; //el11 ... el21 ...  ....
+		std::array<functionType, funcCount> funcs{};
+
+		static constexpr int count = funcCount;
+		static constexpr int paramIdxsStorageSize = paramIdxsStorageSize_;
 
 		constexpr auto& func(int i) {
 			return funcs[i];
@@ -48,37 +53,37 @@ namespace Meta
 		constexpr span<int> f_all_params(int i) {
 			return { &paramIdxsStorage[funcs[i].storageIdx], funcs[i].total_count() };
 		}
-		constexpr span<int> f_all_params(const function& f) {
+		constexpr span<int> f_all_params(const functionType& f) {
 			return { &paramIdxsStorage[f.storageIdx], f.total_count() };
 		}
 		constexpr span<int> f_params(int i) {
 			return { &paramIdxsStorage[funcs[i].storageIdx], funcs[i].param_count() };
 		}
-		constexpr span<int> f_params(const function& f) {
+		constexpr span<int> f_params(const functionType& f) {
 			return { &paramIdxsStorage[f.storageIdx], f.param_count() };
 		}
 		constexpr span<int> f_orders(int i) {
 			return { &paramIdxsStorage[funcs[i].storageIdx] + funcs[i].orders_start(), funcs[i].order_count() };
 		}
-		constexpr span<int> f_orders(const function& f) {
+		constexpr span<int> f_orders(const functionType& f) {
 			return { &paramIdxsStorage[f.storageIdx] + f.orders_start(), f.order_count() };
 		}
 		constexpr span<const int> f_all_params(int i) const {
 			return { &paramIdxsStorage[funcs[i].storageIdx], funcs[i].total_count() };
 		}
-		constexpr span<const int> f_all_params(const function& f) const {
+		constexpr span<const int> f_all_params(const functionType& f) const {
 			return { &paramIdxsStorage[f.storageIdx], f.total_count() };
 		}
 		constexpr span<const int> f_params(int i) const {
 			return { &paramIdxsStorage[funcs[i].storageIdx], funcs[i].param_count() };
 		}
-		constexpr span<const int> f_params(const function& f) const {
+		constexpr span<const int> f_params(const functionType& f) const {
 			return { &paramIdxsStorage[f.storageIdx], f.param_count() };
 		}
 		constexpr span<const int> f_orders(int i) const {
 			return { &paramIdxsStorage[funcs[i].storageIdx] + funcs[i].orders_start(), funcs[i].order_count() };
 		}
-		constexpr span<const int> f_orders(const function& f) const {
+		constexpr span<const int> f_orders(const functionType& f) const {
 			return { &paramIdxsStorage[f.storageIdx] + f.orders_start(), f.order_count() };
 		}
 	};
@@ -86,8 +91,8 @@ namespace Meta
 
 
 	////////////////////////////////////
-// Data types used in any context //
-////////////////////////////////////
+	// Data types used in any context //
+	////////////////////////////////////
 
 	struct FuncNameID {
 		sv name;
@@ -161,14 +166,14 @@ namespace Meta
 	// Output function of this stage //
 	///////////////////////////////////
 
-	template<typename funcNamespaceHelper, auto ordersDataImag, auto paramsDataImag>
+	template<typename funcNamespaceHelper, auto ordersDataImag, auto paramsDataImag, typename AdditionalFunctionInfo = void>
 	consteval auto CreateFuncsData() {
 		constexpr auto funcMetaRange = meta::members_of(funcNamespaceHelper::meta, meta::is_function);
 
 		constexpr size_t funcCount            = size(funcMetaRange);
 		constexpr size_t paramIdxsStorageSize = CalcTotalParamAndOrderCount(funcMetaRange);
 
-		FuncsDataReal<funcCount, paramIdxsStorageSize> funcsDataReal{};
+		FuncsDataReal<funcCount, paramIdxsStorageSize, AdditionalFunctionInfo> funcsDataReal{};
 		FuncsDataImag<funcCount, funcNamespaceHelper> funcsDataImag{};
 
 		// Gather data to be used in the order optimization step
@@ -232,10 +237,19 @@ namespace Meta
 	// Runtime preprocessing calculations //
 	////////////////////////////////////////
 
-	template<size_t funcCount>
+	template<size_t funcCount, typename orderNamespaceHelperIn, typename funcNamespaceHelperIn>
 	struct FuncsCmpSwapMats {
-		std::array<std::array<bool, funcCount>, funcCount> swap{};
-		std::array<std::array<bool, funcCount>, funcCount> cmp{};  // <
+		static inline std::array<std::array<bool, funcCount>, funcCount> swap{};
+		static inline std::array<std::array<bool, funcCount>, funcCount> cmp{};  // <
+		static inline bool isComputed = false;
+
+		template<typename AdditionalFunctionInfo>
+		friend bool operator<(const function<AdditionalFunctionInfo>& lhs,
+							  const function<AdditionalFunctionInfo>& rhs);
+
+		template<typename AdditionalFunctionInfo>
+		friend bool operator<=>(const function<AdditionalFunctionInfo>& lhs,
+								const function<AdditionalFunctionInfo>& rhs);
 	};
 
 	// Returns {f1 < f2, f2 < f1}
@@ -284,9 +298,13 @@ namespace Meta
 		return { smaller1, smaller2 };
 	}
 
+	template<typename orderNamespaceHelper, typename funcNamespaceHelper>
 	inline auto CreateFuncsCmpSwapMats(const auto& ordersCmpSwapMats, const auto& funcsDataReal) {
 		constexpr auto funcCount = funcsDataReal.count;
-		FuncsCmpSwapMats<funcCount> funcsCmpSwapMats;
+		FuncsCmpSwapMats<funcCount, orderNamespaceHelper, funcNamespaceHelper> funcsCmpSwapMats;
+
+		if(funcsCmpSwapMats.isComputed)
+			return funcsCmpSwapMats;
 
 		// Compute cmp and swap matrices
 		for (int i = 0; i < funcCount; ++i)
@@ -298,6 +316,7 @@ namespace Meta
 				funcsCmpSwapMats.swap[j][i] = cmp.first && cmp.second;
 			}
 
+		funcsCmpSwapMats.isComputed = true;
 		return funcsCmpSwapMats;
 	}
 

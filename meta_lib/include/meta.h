@@ -61,43 +61,52 @@ inline int MetaOptimToFile ## ON ## FN = META_OPTIM_TO_FILE_FUNC(ON, FN, OP)<ide
 }
 // END #define META_PRECOMPUTE_FUNC_IDXS(ON, FN, OP)	
 
-#define META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP)																\
-template<auto SAInputPreprocessFunctor>																			\
-inline int MetaOptimToFileHeaderFunc ## ON ## FN ## OP (bool write) {											\
-	consteval {																									\
-		using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON);														\
-		using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN);														\
-																												\
-		constexpr auto ordersDataRI = Meta::CreateOrdersData<ON_Helper>();										\
-		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created orders data.");								\
-		constexpr auto paramsDataI = Meta::CreateParamsData<FN_Helper, ordersDataRI.imag>();					\
-		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created params data.");								\
-		constexpr auto funcsDataRI = Meta::CreateFuncsData<FN_Helper, ordersDataRI.imag, paramsDataI>();		\
-		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created functions data.");							\
-																												\
-		->fragment {																							\
-			using OrdersDataRealType [[maybe_unused]] = decltype(%{ ordersDataRI.real });						\
-			using FuncsDataRealType [[maybe_unused]] = decltype(%{ funcsDataRI.real });							\
-			constexpr auto ordersDataReal = %{ ordersDataRI.real };												\
-			constexpr auto funcsDataReal = %{ funcsDataRI.real };												\
-			auto ordersCmpSwapMats = CreateOrdersCmpSwapMats(ordersDataReal);									\
-			auto funcsCmpSwapMats = CreateFuncsCmpSwapMats(ordersCmpSwapMats, funcsDataReal);					\
-																												\
+#define META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP)																	\
+																													\
+struct AdditionalFunctionInfo ## ON ## FN ## OP {																	\
+		static constexpr int funcCount = size(Meta::meta::members_of(^ FN, Meta::meta::is_function));				\
+		using orderNamespaceHelper = META_NAMESPACE_HELPER_TYPE(ON);												\
+		using funcNamespaceHelper = META_NAMESPACE_HELPER_TYPE(FN);													\
+};																													\
+																													\
+template<auto SAInputPreprocessFunctor>																				\
+inline int MetaOptimToFileHeaderFunc ## ON ## FN ## OP (bool write) {												\
+	consteval {																										\
+		using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON);															\
+		using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN);															\
+		using AdditionalFunctionInfo = AdditionalFunctionInfo ## ON ## FN ## OP ;									\
+																													\
+		constexpr auto ordersDataRI = Meta::CreateOrdersData<ON_Helper>();											\
+		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created orders data.");									\
+		constexpr auto paramsDataI = Meta::CreateParamsData<FN_Helper, ordersDataRI.imag>();						\
+		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created params data.");									\
+		constexpr auto funcsDataRI =																				\
+				Meta::CreateFuncsData<FN_Helper, ordersDataRI.imag, paramsDataI, AdditionalFunctionInfo>();			\
+		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created functions data.");								\
+																													\
+		->fragment {																								\
+			using OrdersDataRealType [[maybe_unused]] = decltype(%{ ordersDataRI.real });							\
+			using FuncsDataRealType [[maybe_unused]] = decltype(%{ funcsDataRI.real });								\
+			constexpr auto ordersDataReal = %{ ordersDataRI.real };													\
+			constexpr auto funcsDataReal = %{ funcsDataRI.real };													\
+			auto ordersCmpSwapMats = CreateOrdersCmpSwapMats(ordersDataReal);										\
+			auto funcsCmpSwapMats = CreateFuncsCmpSwapMats<ON_Helper, FN_Helper>(ordersCmpSwapMats, funcsDataReal);	\
+																													\
 			std::optional<Meta::SAFunctionOrder::SAParams> saParams;												\
 			std::tuple pre_input{ ordersDataReal, funcsDataReal, ordersCmpSwapMats, funcsCmpSwapMats, saParams };	\
 			std::tuple input = SAInputPreprocessFunctor.operator()(pre_input);										\
-																												\
-			auto newFuncsDataReal = OP<OrdersDataRealType, FuncsDataRealType,									\
-											  decltype(ordersCmpSwapMats), decltype(funcsCmpSwapMats)>(input);	\
-																												\
-			if([:%{^write}:])																					\
-				WriteIdxsToFile(newFuncsDataReal,																\
-								META_PRECOMPUTE_HEADER_FILENAME(ON, FN),										\
-								META_STRINGIFY(META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN))					\
-								);																				\
-		};																										\
-	}																											\
-	return 0;																									\
+																													\
+			auto newFuncsDataReal = OP<OrdersDataRealType, FuncsDataRealType,										\
+											  decltype(ordersCmpSwapMats), decltype(funcsCmpSwapMats)>(input);		\
+																													\
+			if([:%{^write}:])																						\
+				WriteIdxsToFile(newFuncsDataReal,																	\
+								META_PRECOMPUTE_HEADER_FILENAME(ON, FN),											\
+								META_STRINGIFY(META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN))						\
+								);																					\
+		};																											\
+	}																												\
+	return 0;																										\
 }
 // END #define META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP)
 
@@ -188,8 +197,11 @@ inline void WriteIdxsToFile(const auto& newFuncsDataReal, const char* headerFile
 		std::abort();
 	}
 
+	using AdditionalFunctionInfo = typename decltype(newFuncsDataReal.funcs)::value_type::AdditionalInfo;
+	using functionGetIDType = functionGetID<AdditionalFunctionInfo>;
+
 	f << "#pragma once\n" << "#include <array>\n\n";
-	f << std::format("inline constexpr std::array<int, {0}> {1}{{ {2} }};\n", newFuncsDataReal.count, precFuncIdxArrName, ContainerFormatAdapter{ newFuncsDataReal.funcs, AdaptType<functionGetID>() });
+	f << std::format("inline constexpr std::array<int, {0}> {1}{{ {2} }};\n", newFuncsDataReal.count, precFuncIdxArrName, ContainerFormatAdapter{ newFuncsDataReal.funcs, AdaptType<functionGetIDType>() });
 
 	f.close();
 }
