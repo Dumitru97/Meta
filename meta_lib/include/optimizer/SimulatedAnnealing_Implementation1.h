@@ -10,6 +10,9 @@
 
 namespace Meta
 {
+	template<typename OrdersDataRealType, typename FuncsDataRealType, typename OrdersCmpSwapMatsType, typename FuncsCmpSwapMatsType>
+	auto SAFunctionOrderOP(const auto& input);
+
 	namespace SAFunctionOrder {
 
 		struct SAParams {
@@ -405,5 +408,14 @@ namespace Meta
 		};
 
 	} // namespace SAFunctionOrder
+
+	template<typename OrdersDataRealType, typename FuncsDataRealType, typename OrdersCmpSwapMatsType, typename FuncsCmpSwapMatsType>
+	auto SAFunctionOrderOP(const auto& input) {
+		auto newFuncsDataReal = Meta::SimulatedAnnealing<
+			SAFunctionOrder::SASettings<OrdersDataRealType, FuncsDataRealType,
+			OrdersCmpSwapMatsType, FuncsCmpSwapMatsType>
+		>(input);
+		return newFuncsDataReal;
+	}
 
 } // namespace Meta

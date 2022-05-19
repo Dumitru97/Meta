@@ -52,10 +52,10 @@ int main() {
 	//Default order1 cost
 	std::cout << "\n\n" << "DefaultOrder1" << "\n";
 	constexpr auto defaultOrderInputPreprocess1 = DefaultOrderInputPreprocess{ defaultOrder1 };
-	META_OPTIM_TO_FILE_FUNC(ON, FN)<defaultOrderInputPreprocess1>(false);
+	META_OPTIM_TO_FILE_FUNC(ON, FN, SAFunctionOrderOP)<defaultOrderInputPreprocess1>(false);
 
 	//Default order2 cost
 	std::cout << "\n\n" << "DefaultOrder2" << "\n";
 	constexpr auto defaultOrderInputPreprocess2 = DefaultOrderInputPreprocess{ defaultOrder2 };
-	META_OPTIM_TO_FILE_FUNC(ON, FN)<defaultOrderInputPreprocess2>(false);
+	META_OPTIM_TO_FILE_FUNC(ON, FN, SAFunctionOrderOP)<defaultOrderInputPreprocess2>(false);
 }

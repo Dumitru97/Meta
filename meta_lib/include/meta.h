@@ -31,10 +31,10 @@ namespace meta = std::experimental::meta;
 // This macro should be called alone in a header file. Include the header in the main project and in the precompute project.
 // In this way the precompute project won't compile unnecessary source files from the main project.
 #if defined(META_PRECOMPUTE)
-#define META_PRECOMPUTE_OR_CREATE_ARGUMENTS(order_namespace, function_namespace) META_PRECOMPUTE_FUNC_IDXS(order_namespace, function_namespace)
+#define META_PRECOMPUTE_OR_CREATE_ARGUMENTS(order_namespace, function_namespace, optimizer_op_adapter) META_PRECOMPUTE_FUNC_IDXS(order_namespace, function_namespace, optimizer_op_adapter)
 #define META_INCLUDE_IDXS_HEADER(PATH, ON, FN) "misc/empty.h"
 #else
-#define META_PRECOMPUTE_OR_CREATE_ARGUMENTS(order_namespace, function_namespace) META_CREATE_ARGUMENTS(order_namespace, function_namespace)
+#define META_PRECOMPUTE_OR_CREATE_ARGUMENTS(order_namespace, function_namespace, optimizer_op_adapter) META_CREATE_ARGUMENTS(order_namespace, function_namespace)
 #define META_INCLUDE_IDXS_HEADER(PATH, ON, FN) META_STRINGIFY(PATH/META_PRECOMPUTE_HEADER(ON, FN))
 #endif // defined(META_PRECOMPUTE)
 
@@ -49,21 +49,21 @@ namespace meta = std::experimental::meta;
 #define META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN) precomputed_fidxs_##ON_##FN
 
 // Scans functions and runs simulated annealing over them to determine the best ordering. Writes indexes to header file.
-#define META_PRECOMPUTE_FUNC_IDXS(ON, FN)																	\
+#define META_PRECOMPUTE_FUNC_IDXS(ON, FN, OP)																\
 																											\
 META_DEFINE_NAMESPACE_HELPERS(ON, FN)																		\
-META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN)																		\
+META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP)																	\
 																											\
 namespace Meta																								\
 {																											\
 inline int MetaOptimCleanFile ## ON ## FN = DeleteIdxHeaderFile(META_PRECOMPUTE_HEADER_FILENAME(ON, FN));	\
-inline int MetaOptimToFile ## ON ## FN = META_OPTIM_TO_FILE_FUNC(ON, FN)<identity{}>(true);					\
+inline int MetaOptimToFile ## ON ## FN = META_OPTIM_TO_FILE_FUNC(ON, FN, OP)<identity{}>(true);				\
 }
-// END #define META_PRECOMPUTE_FUNC_IDXS(ON, FN)	
+// END #define META_PRECOMPUTE_FUNC_IDXS(ON, FN, OP)	
 
-#define META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN)																	\
+#define META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP)																\
 template<auto SAInputPreprocessFunctor>																			\
-inline int MetaOptimToFileHeaderFunc ## ON ## FN (bool write) {													\
+inline int MetaOptimToFileHeaderFunc ## ON ## FN ## OP (bool write) {											\
 	consteval {																									\
 		using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON);														\
 		using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN);														\
@@ -87,10 +87,8 @@ inline int MetaOptimToFileHeaderFunc ## ON ## FN (bool write) {													\
 			std::tuple pre_input{ ordersDataReal, funcsDataReal, ordersCmpSwapMats, funcsCmpSwapMats, saParams };	\
 			std::tuple input = SAInputPreprocessFunctor.operator()(pre_input);										\
 																												\
-			auto newFuncsDataReal = Meta::SimulatedAnnealing<													\
-				Meta::SAFunctionOrder::SASettings<OrdersDataRealType, FuncsDataRealType,						\
-											  decltype(ordersCmpSwapMats), decltype(funcsCmpSwapMats)>			\
-			>(input);																							\
+			auto newFuncsDataReal = OP<OrdersDataRealType, FuncsDataRealType,									\
+											  decltype(ordersCmpSwapMats), decltype(funcsCmpSwapMats)>(input);	\
 																												\
 			if([:%{^write}:])																					\
 				WriteIdxsToFile(newFuncsDataReal,																\
@@ -101,9 +99,9 @@ inline int MetaOptimToFileHeaderFunc ## ON ## FN (bool write) {													\
 	}																											\
 	return 0;																									\
 }
-// END #define META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN)
+// END #define META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP)
 
-#define META_OPTIM_TO_FILE_FUNC(ON, FN) MetaOptimToFileHeaderFunc ## ON ## FN
+#define META_OPTIM_TO_FILE_FUNC(ON, FN, OP) MetaOptimToFileHeaderFunc ## ON ## FN ## OP
 
 // Creates variables in the global namespace to be used as function arguments
 #define META_CREATE_ARGUMENTS(ON, FN)													\
