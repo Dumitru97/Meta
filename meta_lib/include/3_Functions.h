@@ -380,4 +380,56 @@ namespace Meta
 		return funcsCmpSwapMats;
 	}
 
+
+	bool ProduceInitialValidOrdering(auto& funcs, auto& funcs_perm, auto& fmats, auto funcCount)
+	{
+		// Check if ordering is valid and initialize funcs_perm
+		bool isValidOrdering = true;
+		for (int i = 0; i < funcCount; ++i) {
+			for (int j = i; j < funcCount; ++j) {
+				// Check if smaller than all
+				if (!fmats.cmp[funcs[i].ID][funcs[j].ID]) {
+					isValidOrdering = false;
+					//std::cout << "Invalid ordering. Func " << funcs[i].ID << " bigger than " << funcs[j].ID << "\n";
+					break;
+				}
+			}
+
+			if (!isValidOrdering)
+				break;
+
+			funcs_perm[funcs[i].ID] = i;
+		}
+
+		if (!isValidOrdering) {
+			//std::cout << "Reordering functions into a valid ordering" << "\n";
+
+			// Sorting the functions into a valid ordering, if ID == idx used to be true, it will not anymore
+			// Computing funcs_perm
+			int minIdx = 0; // Idx of min function to be found
+			for (int i = minIdx; i < funcCount; ++i) {
+				bool isMin = true;
+
+				// Check if smaller than all
+				for (int j = minIdx; j < funcCount; ++j) {
+					if (!fmats.cmp[funcs[i].ID][funcs[j].ID]) {
+						isMin = false;
+						break;
+					}
+				}
+
+				if (isMin) { // Swap with minIdx if min, otherwise 'i' advances to look for a min func
+					std::swap(funcs[minIdx], funcs[i]);
+					funcs_perm[funcs[minIdx].ID] = minIdx;
+
+					// Found a min and placed it in minIdx, now 'i' is reset
+					minIdx++;
+					i = minIdx - 1; // To negate i++
+				}
+			}
+			return !isValidOrdering;
+		}
+		return isValidOrdering;
+	}
+
 } // namespace Meta

@@ -11,15 +11,8 @@
 //	
 //    namespace BBFunctionOrder {
 //
-//        template<int N>
+//        template<typename OrdersDataRealType, typename FuncsDataRealType, typename OrdersCmpSwapMatsType, typename FuncsCmpSwapMatsType>
 //        struct BBStruct {
-//            std::array<int, N> best_sol;
-//            std::array<std::array<int, N>, N> fswap;
-//            std::array<std::array<float, N>, N> costm;
-//            std::array<float, N> min_costs;
-//
-//            int sol_num;
-//            bound hb = { FLT_MAX, FLT_MAX, N };
 //
 //            struct bound {
 //                float value;
@@ -76,9 +69,6 @@
 //                    });
 //                }
 //            };
-//
-//            ext_priority_queue<ctx> pqueue;
-//            bool cleanpq = false;
 //
 //            void BB(const ctx& prev_ctx) {
 //                // Add new nodes
@@ -182,25 +172,25 @@
 //            }
 //
 //            FuncsDataType fdata;
-//            decltype(fdata.funcs)& funcs = fdata.funcs;
 //            FuncsCmpSwapMatsType fmats;
-//            //OrdersCmpSwapMatsType omats;
+//            decltype(fdata.funcs)& funcs = fdata.funcs;
 //
+//            static constexpr int funcCount = FuncsDataType::count;
+//            std::array<std::array<float, funcCount>, funcCount> costm;
+//            std::array<float, funcCount> min_costs;
+//
+//            std::array<int, N> best_sol;
+//            int sol_num;
+//
+//            bound hb = { FLT_MAX, FLT_MAX, N };
+//
+//            ext_priority_queue<ctx> pqueue;
+//            bool cleanpq = false;
 //
 //            void Init(const auto& ord_funcs_data_and_mat_tuple_and_saparams) {
-//                //odata = std::get<0>(ord_funcs_data_and_mat_tuple_and_saparams);
 //                fdata = std::get<1>(ord_funcs_data_and_mat_tuple_and_saparams);
-//                //omats = std::get<2>(ord_funcs_data_and_mat_tuple_and_saparams);
 //                fmats = std::get<3>(ord_funcs_data_and_mat_tuple_and_saparams);
 //                auto optionalParams = std::get<4>(ord_funcs_data_and_mat_tuple_and_params);
-//
-//                for (int i = 0; i < N; ++i) {
-//                    fswap[i][0] = N - 1;
-//                    int st = 1;
-//                    for (int j = 0; j < N; ++j)
-//                        if (i != j)
-//                            fswap[i][st++] = j;
-//                }
 //
 //                for (int i = 0; i < N; ++i)
 //                    costm[i][i] = FLT_MAX;
@@ -218,12 +208,6 @@
 //                            min_costs[j] = cost;
 //                    }
 //                }
-//                //for (int i = 0; i < N; ++i) {
-//                //    for (int j = 0; j < N; ++j)
-//                //        std::cout << costm[i][j] << ' ';
-//                //    std::cout << '\n';
-//                //}
-//                //std::cout << '\n';
 //            }
 //
 //        };

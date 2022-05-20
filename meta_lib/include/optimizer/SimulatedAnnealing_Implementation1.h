@@ -61,6 +61,7 @@ namespace Meta
 			using FuncsDataType = std::remove_cvref_t<FuncsDataRealTypeIn>;
 			using OrdersCmpSwapMatsType = std::remove_cvref_t<OrdersCmpSwapMatsTypeIn>;
 			using FuncsCmpSwapMatsType = std::remove_cvref_t<FuncsCmpSwapMatsTypeIn>;
+			using FuncsDeltaMat = decltype(FuncsCmpSwapMatsType::deltas);
 			using UnusedType = int;
 
 			// Member variables
@@ -100,50 +101,7 @@ namespace Meta
 				}
 
 				// Check if ordering is valid and initialize funcs_perm
-				bool isValidOrdering = true;
-				for (int i = 0; i < funcCount; ++i) {
-					for (int j = i; j < funcCount; ++j) {
-						// Check if smaller than all
-						if (!(funcs[i] < funcs[j])) {
-							isValidOrdering = false;
-							std::cout << "Invalid ordering. Func " << funcs[i].ID << " bigger than " << funcs[j].ID << "\n";
-							break;
-						}
-					}
-
-					if (!isValidOrdering)
-						break;
-
-					funcs_perm[funcs[i].ID] = i;
-				}	
-
-				if (!isValidOrdering) {
-					std::cout << "Reordering function into a valid ordering" << "\n";
-
-					// Sorting the functions into a valid ordering, ID == idx will not true anymore
-					// Computing funcs_perm
-					int minIdx = 0; // Idx of min function to be found
-					for (int i = minIdx; i < funcCount; ++i) {
-						bool isMin = true;
-
-						// Check if smaller than all
-						for (int j = minIdx; j < funcCount; ++j) {
-							if (!(funcs[i] < funcs[j])) {
-								isMin = false;
-								break;
-							}
-						}
-
-						if (isMin) { // Swap with minIdx if min, otherwise 'i' advances to look for a min func
-							std::swap(funcs[minIdx], funcs[i]);
-							funcs_perm[funcs[minIdx].ID] = minIdx;
-
-							// Found a min and placed it in minIdx, now 'i' is reset
-							minIdx++;
-							i = minIdx - 1; // To negate i++
-						}
-					}
-				}
+				ProduceInitialValidOrdering(funcs, funcs_perm, fmats, funcCount);
 
 				// Compute initial cost for difference
 				initcost = Cost(UnusedType{});
@@ -154,11 +112,6 @@ namespace Meta
 					if (funcs[pos].ID != i)
 						throw;
 				}
-
-				//std::cout << "Valid input ordering:\n";
-				//for (int i = 0; i < funcCount; ++i)
-				//	std::cout << funcs[i].ID << " ";
-				//std::cout << "\n";
 
 				return {};
 			}
@@ -233,11 +186,11 @@ namespace Meta
 					auto maxVal = fmats.deltas.swappable_count - 1;
 					swapUnifDistr.param(typename std::uniform_int<int>::param_type{ minVal, maxVal });
 					const auto row = swapUnifDistr(gen);
-					origIdx1 = fmats.deltas[row][delta_func_ID];
+					origIdx1 = fmats.deltas[row][FuncsDeltaMat::ID_idx];
 
 					// Random a function to swap with
-					minVal = delta_fswaps_count + 1;
-					maxVal = fmats.deltas[row][delta_fswaps_count] - 1;
+					minVal = fmats.deltas.swappable_count + 1;
+					maxVal = fmats.deltas[row][fmats.deltas.swappable_count] - 1;
 					swapUnifDistr.param(typename std::uniform_int<int>::param_type{ minVal, maxVal });
 					const int col = swapUnifDistr(gen);
 					origIdx2 = fmats.deltas[row][col];
@@ -355,11 +308,6 @@ namespace Meta
 					std::cout << "Cost increase. Using returning input instead of output order." << "\n";
 					return initFuncsData;
 				}
-
-				//std::cout << "New ordering:\n";
-				//for (int i = 0; i < funcCount; ++i)
-				//	std::cout << funcs[i].ID << " ";
-				//std::cout << "\n";
 
 				return fdata;
 			}
