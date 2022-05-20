@@ -63,38 +63,29 @@ namespace Meta
 			using FuncsCmpSwapMatsType = std::remove_cvref_t<FuncsCmpSwapMatsTypeIn>;
 			using UnusedType = int;
 
-			static constexpr size_t delta_func_ID = 0;
-			static constexpr size_t delta_fswaps_count = 1;
-
 			// Member variables
 		public:
-			SAParams sa_params = { .reps = 100, .temp = 25, .reps_increment = 250, .temp_decrement = 0.08f, .pow_mult = 20 };
+			SAParams sa_params = { .reps = 500, .temp = 25, .reps_increment = 250, .temp_decrement = 0.1f, .pow_mult = 20 };
 
-			//OrdersDataType odata;
 			FuncsDataType fdata;
-			decltype(fdata.funcs)& funcs = fdata.funcs;
 			FuncsCmpSwapMatsType fmats;
-			//OrdersCmpSwapMatsType omats;
+			decltype(fdata.funcs)& funcs = fdata.funcs;
+
 			static constexpr int funcCount = FuncsDataType::count;
-
-			// Holds for every function all the functions that it can be swapped with. Used in NeighbourDelta().
-			std::array<std::array<int, funcCount + 2 - 1>, funcCount> delta_swap_mat{};	// +2(func id and row size) -1(excluding self swapping)
-			int delta_swappable_func_count{};											// Number of swappable functions in delta_swap_mat
-
 			std::array<int, funcCount> funcs_perm{}; // Use function ID to get the index in fdata after optimizing
 
 			std::mt19937 gen;
 			std::uniform_int_distribution<int> swapUnifDistr;
 
+			// Reuse if SA fails to produce a better solution
 			FuncsDataType initFuncsData;
 			float initcost;
+
 			//Member functions for the CRTP interface
 		public:
 			UnusedType TransformInput(const auto& ord_funcs_data_and_mat_tuple_and_saparams) {
 				// Copy into member variables
-				//odata = std::get<0>(ord_funcs_data_and_mat_tuple_and_saparams);
 				fdata = std::get<1>(ord_funcs_data_and_mat_tuple_and_saparams);
-				//omats = std::get<2>(ord_funcs_data_and_mat_tuple_and_saparams);
 				fmats = std::get<3>(ord_funcs_data_and_mat_tuple_and_saparams);
 				auto optionalParams = std::get<4>(ord_funcs_data_and_mat_tuple_and_saparams);
 				
@@ -124,32 +115,7 @@ namespace Meta
 						break;
 
 					funcs_perm[funcs[i].ID] = i;
-				}
-
-				// Compute delta_swap_mat
-				constexpr int delta_swap_row_offset = 2;
-				int col_pos = 0;
-				for (int i = 0; i < funcCount; ++i) {
-					int row_pos = delta_swap_row_offset;
-					for (int j = 0; j < i; ++j) {
-						if (fmats.swap[i][j])
-							delta_swap_mat[col_pos][row_pos++] = j;
-					}
-					for (int j = i + 1; j < funcCount; ++j) {
-						if (fmats.swap[i][j])
-							delta_swap_mat[col_pos][row_pos++] = j;
-					}
-
-					const int row_size = row_pos - delta_swap_row_offset;
-					// If unswappable, do not include in delta_swap_mat
-					if (row_size == 0)
-						continue;
-
-					delta_swap_mat[col_pos][0] = i; // Func ID
-					delta_swap_mat[col_pos][1] = row_size;
-					++col_pos;
-				}
-				delta_swappable_func_count = col_pos;
+				}	
 
 				if (!isValidOrdering) {
 					std::cout << "Reordering function into a valid ordering" << "\n";
@@ -202,7 +168,7 @@ namespace Meta
 			}
 
 			bool CanBeOptimized(UnusedType) {
-				return funcCount > 1 && delta_swappable_func_count > 0;
+				return funcCount > 1 && fmats.deltas.swappable_count > 0;
 			}
 
 			cost_t Cost(const UnusedType) {
@@ -264,17 +230,17 @@ namespace Meta
 				while (!validSwap) {
 					// Random a swappable function
 					auto minVal = 0;
-					auto maxVal = delta_swappable_func_count - 1;
+					auto maxVal = fmats.deltas.swappable_count - 1;
 					swapUnifDistr.param(typename std::uniform_int<int>::param_type{ minVal, maxVal });
 					const auto row = swapUnifDistr(gen);
-					origIdx1 = delta_swap_mat[row][delta_func_ID];
+					origIdx1 = fmats.deltas[row][delta_func_ID];
 
 					// Random a function to swap with
 					minVal = delta_fswaps_count + 1;
-					maxVal = delta_swap_mat[row][delta_fswaps_count] - 1;
+					maxVal = fmats.deltas[row][delta_fswaps_count] - 1;
 					swapUnifDistr.param(typename std::uniform_int<int>::param_type{ minVal, maxVal });
 					const int col = swapUnifDistr(gen);
-					origIdx2 = delta_swap_mat[row][col];
+					origIdx2 = fmats.deltas[row][col];
 
 					// Order because array limit cases in CostAndApply
 					if (funcs_perm[origIdx2] < funcs_perm[origIdx1])

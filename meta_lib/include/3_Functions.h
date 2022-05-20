@@ -239,12 +239,42 @@ namespace Meta
 
 	template<size_t funcCount, typename orderNamespaceHelperIn, typename funcNamespaceHelperIn>
 	struct FuncsCmpSwapMats {
-		static inline std::array<std::array<bool, funcCount>, funcCount> swap{};
+		// Holds for every function that can be swapped with, all the functions that it can be swapped with
+		struct DeltaMat {
+			static constexpr size_t ID_idx = 0;
+			static constexpr size_t count_idx = 1;
+			static constexpr size_t values_idx = 2;
+
+			struct DeltaRow {
+				std::array<int, funcCount + 1> arr{}; // +2(func id and row size) -1(excluding self swapping)
+
+				auto count() const { return  arr[count_idx]; }
+				auto begin() const { return &arr[values_idx]; }
+				auto end()   const { return &arr[values_idx + count() - 1] + 1; }
+				auto ID()    const { return  arr[ID_idx]; }
+
+				const auto& operator[] (int i) const { return arr[i]; }
+				auto& operator[] (int i) { return arr[i]; }
+			};
+
+			std::array<DeltaRow, funcCount> mat{}; // count <= funcCount 
+			int swappable_count;				   // Number of swappable functions in mat
+
+			auto begin() const { return &mat[0]; }
+			auto end()   const { return &mat[swappable_count - 1] + 1; }
+
+			const auto& operator[] (int i) const { return mat[i]; }
+			auto& operator[] (int i) { return mat[i]; }
+		};
+
+		static inline std::array<std::array<bool, funcCount>, funcCount> swap{}; // <=>
 		static inline std::array<std::array<bool, funcCount>, funcCount> cmp{};  // <
+		static inline DeltaMat deltas{};
 		static inline bool isComputed = false;
 
 		using SwapMatType = decltype(swap);
 		using CmpMatType = decltype(cmp);
+		using DeltaMatType = decltype(deltas);
 
 		template<typename AdditionalFunctionInfo>
 		friend bool operator<(const function<AdditionalFunctionInfo>& lhs,
@@ -318,6 +348,33 @@ namespace Meta
 				funcsCmpSwapMats.swap[i][j] = cmp.first && cmp.second;
 				funcsCmpSwapMats.swap[j][i] = cmp.first && cmp.second;
 			}
+
+		// Compute deltas matrix
+		using DeltaMatType = decltype(funcsCmpSwapMats.deltas);
+
+		int row_pos = 0;
+		for (int i = 0; i < funcCount; ++i) {
+			int col_pos = DeltaMatType::values_idx;
+			for (int j = 0; j < i; ++j) {
+				if (funcsCmpSwapMats.swap[i][j])
+					funcsCmpSwapMats.deltas[row_pos][col_pos++] = j;
+			}
+			for (int j = i + 1; j < funcCount; ++j) {
+				if (funcsCmpSwapMats.swap[i][j])
+					funcsCmpSwapMats.deltas[row_pos][col_pos++] = j;
+			}
+
+			const int row_size = col_pos - DeltaMatType::values_idx;
+
+			// If unswappable, do not include
+			if (row_size == 0)
+				continue;
+
+			funcsCmpSwapMats.deltas[row_pos][DeltaMatType::ID_idx] = i; // Func ID
+			funcsCmpSwapMats.deltas[row_pos][DeltaMatType::count_idx] = row_size;
+			++row_pos;
+		}
+		funcsCmpSwapMats.deltas.swappable_count = row_pos;
 
 		funcsCmpSwapMats.isComputed = true;
 		return funcsCmpSwapMats;

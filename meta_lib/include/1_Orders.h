@@ -179,8 +179,8 @@ namespace Meta
 
 	template<size_t orderCount>
 	struct OrdersCmpSwapMats {
-		std::array<std::array<bool, orderCount>, orderCount> swap{};
-		std::array<std::array<int, orderCount>, orderCount> cmp{};// < 
+		std::array<std::array<bool, orderCount>, orderCount> swap{}; // <=>
+		std::array<std::array<int , orderCount>, orderCount> cmp{};  // < 
 	};
 
 	//returns e1 < e2, e2 < e1
