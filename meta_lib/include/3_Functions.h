@@ -380,7 +380,7 @@ namespace Meta
 		return funcsCmpSwapMats;
 	}
 
-	bool FindValidOrdering(int minIdx, auto& funcs, auto& funcs_perm, auto& fmats, auto funcCount) {
+	bool FindValidOrdering(const int minIdx, auto& funcs, auto& funcs_perm, auto& fmats, auto funcCount) {
 		for (int i = minIdx; i < funcCount; ++i) {
 			bool isMin = true;
 
@@ -393,6 +393,10 @@ namespace Meta
 			}
 
 			if (isMin) { // Swap with minIdx if min
+				const auto funcs_minIdx = funcs[minIdx];
+				const auto funcs_i = funcs[i];
+				const auto old_perm_val = funcs_perm[funcs[i].ID];
+
 				std::swap(funcs[minIdx], funcs[i]);
 				funcs_perm[funcs[minIdx].ID] = minIdx;
 
@@ -402,8 +406,11 @@ namespace Meta
 				else {
 					// Find a solution, if not, 'i' advances to look for a new min func
 					auto foundValid = FindValidOrdering(minIdx + 1, funcs, funcs_perm, fmats, funcCount);
-					if (!foundValid) // Revert swap
-						std::swap(funcs[minIdx], funcs[i]);
+					if (!foundValid) { // Revert swap and perms
+						funcs[minIdx] = funcs_minIdx;
+						funcs[i] = funcs_i;
+						funcs_perm[funcs_i.ID] = old_perm_val;
+					}
 					else
 						return true;
 				}
@@ -437,36 +444,6 @@ namespace Meta
 				throw;
 
 		return isValidOrdering;
-
-		//if (!isValidOrdering) {
-		//	//std::cout << "Reordering functions into a valid ordering" << "\n";
-		//
-		//	// Sorting the functions into a valid ordering, if ID == idx used to be true, it will not anymore
-		//	// Computing funcs_perm
-		//	int minIdx = 0; // Idx of min function to be found
-		//	for (int i = minIdx; i < funcCount; ++i) {
-		//		bool isMin = true;
-		//
-		//		// Check if smaller than all
-		//		for (int j = minIdx; j < funcCount; ++j) {
-		//			if (!fmats.cmp[funcs[i].ID][funcs[j].ID]) {
-		//				isMin = false;
-		//				break;
-		//			}
-		//		}
-		//
-		//		if (isMin) { // Swap with minIdx if min, otherwise 'i' advances to look for a min func
-		//			std::swap(funcs[minIdx], funcs[i]);
-		//			funcs_perm[funcs[minIdx].ID] = minIdx;
-		//
-		//			// Found a min and placed it in minIdx, now 'i' is reset
-		//			minIdx++;
-		//			i = minIdx - 1; // To negate i++
-		//		}
-		//	}
-		//	return !isValidOrdering;
-		//}
-		//return isValidOrdering;
 	}
 
 } // namespace Meta
