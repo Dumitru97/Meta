@@ -72,7 +72,8 @@ inline int MetaOptimToFile ## ON ## FN ## OP ## PAR = META_OPTIM_TO_FILE_FUNC(ON
 // END #define META_PRECOMPUTE_FUNC_IDXS(ON, FN, OP, PAR)	
 
 #define META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP)																		\
-																														\
+namespace Meta																											\
+{																														\
 template<auto SAInputPreprocessFunctor, typename paramsType>															\
 inline int MetaOptimToFileHeaderFunc ## ON ## FN ## OP (bool write, std::optional<paramsType> paramsIn,					\
 													    const char* header_filename, const char* idx_arr_name)			\
@@ -110,10 +111,11 @@ inline int MetaOptimToFileHeaderFunc ## ON ## FN ## OP (bool write, std::optiona
 		};																												\
 	}																													\
 	return 0;																											\
-}
+}																														\
+}																														\
 // END #define META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP)
 
-#define META_OPTIM_TO_FILE_FUNC(ON, FN, OP) MetaOptimToFileHeaderFunc ## ON ## FN ## OP
+#define META_OPTIM_TO_FILE_FUNC(ON, FN, OP) Meta::MetaOptimToFileHeaderFunc ## ON ## FN ## OP
 
 // Creates variables in the global namespace to be used as function arguments
 #define META_CREATE_ARGUMENTS(ON, FN)													\
@@ -168,12 +170,14 @@ namespace Meta {												\
 
 #define META_NAMESPACE_HELPER_TYPE(NS, ON, FN) Meta::namespaceHelper ## NS ## ON ## FN
 
-#define META_DEFINE_ADDITIONAL_FUNCTION_INFO(ON, FN)													\
-struct AdditionalFunctionInfo ## ON ## FN {																\
-		static constexpr int funcCount = size(Meta::meta::members_of(^ FN, Meta::meta::is_function));	\
-		using orderNamespaceHelper = META_NAMESPACE_HELPER_TYPE(ON, ON, FN);							\
-		using funcNamespaceHelper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN);								\
-};
+#define META_DEFINE_ADDITIONAL_FUNCTION_INFO(ON, FN)														\
+namespace Meta {																							\
+	struct AdditionalFunctionInfo ## ON ## FN {																\
+			static constexpr int funcCount = size(Meta::meta::members_of(^ FN, Meta::meta::is_function));	\
+			using orderNamespaceHelper = META_NAMESPACE_HELPER_TYPE(ON, ON, FN);							\
+			using funcNamespaceHelper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN);								\
+	};																										\
+}																											\
 // END #define META_DEFINE_ADDITIONAL_FUNCTION_INFO(ON, FN) 
 
 #define META_ADDITIONAL_FUNCTION_INFO_TYPE(ON, FN) Meta::AdditionalFunctionInfo ## ON ## FN
