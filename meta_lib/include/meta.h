@@ -132,7 +132,7 @@ consteval {																				\
 }
 // END #define META_CREATE_ARGUMENTS(ON, FN)
 
-#define META_CALL_FUNCTIONS_OPTIMIZED(ON, FN)															\
+#define META_CALL_FUNCTIONS_OPTIMIZED(ON, FN, OP, PAR)													\
 consteval {																								\
 	using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON, ON, FN);											\
 	using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN);											\
@@ -146,16 +146,16 @@ consteval {																								\
 																										\
 	Meta::CallFuncs<funcsDataRI.imag,																	\
 					funcsDataRI.real.funcs,																\
-					META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN)>();									\
+					META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN, OP, PAR)>();						\
 																										\
 	Meta::meta::compiler.print("CALL_FUNCTIONS_OPTIMIZED: "												\
 		"Listing function calls in optimized order from header file : ");								\
 	for (int i = 0; i < funcsDataRI.real.funcs.size(); ++i)												\
 		Meta::meta::compiler.print(Meta::meta::name_of(													\
-			funcsDataRI.imag.metas[META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN)[i]]					\
+			funcsDataRI.imag.metas[META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN, OP, PAR)[i]]			\
 		));																								\
 }
-// END #define META_CALL_FUNCTIONS_OPTIMIZED(ON, FN)
+// END #define META_CALL_FUNCTIONS_OPTIMIZED(ON, FN, OP, PAR)
 
 #define META_DEFINE_NAMESPACE_HELPERS(ON, FN)					\
 namespace Meta {												\

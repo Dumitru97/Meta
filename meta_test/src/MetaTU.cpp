@@ -3,7 +3,7 @@
 #include "../include/simulation/DefaultCallOrder.h"
 
 void CallOptimizedOrder() {
-	META_CALL_FUNCTIONS_OPTIMIZED(ON, FN);
+	META_CALL_FUNCTIONS_OPTIMIZED(ON, FN, SAFunctionOrderOP, sa_params);
 }
 
 void InitArgumentVariables(int acts, int objs) {
