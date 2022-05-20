@@ -50,33 +50,37 @@ namespace meta = std::experimental::meta;
 #define META_PRECOMPUTE_HEADER_FILENAME(ON, FN, OP, PAR) META_PRECOMPUTE_HEADER_DIRECTORY META_STRINGIFY(META_PRECOMPUTE_HEADER(ON, FN, OP, PAR))
 #define META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN, OP, PAR) precomputed_fidxs_##ON_##FN_##OP_##PAR
 
+#if defined(META_PRECOMPUTE)
+#define META_DEFINITIONS(ON, FN, OP)			\
+META_DEFINE_NAMESPACE_HELPERS(ON, FN)			\
+META_DEFINE_ADDITIONAL_FUNCTION_INFO(ON, FN)	\
+META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP)
+// END #define META_DEFINITIONS(ON, FN)
+#else
+#define META_DEFINITIONS(ON, FN, OP) META_DEFINE_NAMESPACE_HELPERS(ON, FN)
+#endif // defined(META_PRECOMPUTE)
+
 // Scans functions and runs simulated annealing over them to determine the best ordering. Writes indexes to header file.
-#define META_PRECOMPUTE_FUNC_IDXS(ON, FN, OP, PAR)																						\
-																																		\
-META_DEFINE_NAMESPACE_HELPERS(ON, FN, OP, PAR)																							\
-META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP, PAR)																							\
-																																		\
-namespace Meta																															\
-{																																		\
-inline int MetaOptimCleanFile ## ON ## FN ## OP ## PAR = DeleteIdxHeaderFile(META_PRECOMPUTE_HEADER_FILENAME(ON, FN, OP, PAR));			\
-inline int MetaOptimToFile ## ON ## FN ## OP ## PAR = META_OPTIM_TO_FILE_FUNC(ON, FN, OP, PAR)<identity{}>(true, std::optional{ PAR });	\
+#define META_PRECOMPUTE_FUNC_IDXS(ON, FN, OP, PAR)																					\
+namespace Meta																														\
+{																																	\
+inline int MetaOptimCleanFile ## ON ## FN ## OP ## PAR = DeleteIdxHeaderFile(META_PRECOMPUTE_HEADER_FILENAME(ON, FN, OP, PAR));		\
+inline int MetaOptimToFile ## ON ## FN ## OP ## PAR = META_OPTIM_TO_FILE_FUNC(ON, FN, OP)<identity{}>(true, std::optional{ PAR },	\
+														META_PRECOMPUTE_HEADER_FILENAME(ON, FN, OP, PAR),							\
+														META_STRINGIFY(META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN, OP, PAR)));	\
 }
 // END #define META_PRECOMPUTE_FUNC_IDXS(ON, FN, OP, PAR)	
 
-#define META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP, PAR)																	\
-																														\
-struct AdditionalFunctionInfo ## ON ## FN ## OP ## PAR {																\
-		static constexpr int funcCount = size(Meta::meta::members_of(^ FN, Meta::meta::is_function));					\
-		using orderNamespaceHelper = META_NAMESPACE_HELPER_TYPE(ON, ON, FN, OP, PAR);									\
-		using funcNamespaceHelper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN, OP, PAR);									\
-};																														\
+#define META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP)																		\
 																														\
 template<auto SAInputPreprocessFunctor, typename paramsType>															\
-inline int MetaOptimToFileHeaderFunc ## ON ## FN ## OP ## PAR (bool write, std::optional<paramsType> paramsIn) {		\
+inline int MetaOptimToFileHeaderFunc ## ON ## FN ## OP (bool write, std::optional<paramsType> paramsIn,					\
+													    const char* header_filename, const char* idx_arr_name)			\
+{																														\
 	consteval {																											\
-		using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON, ON, FN, OP, PAR);												\
-		using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN, OP, PAR);												\
-		using AdditionalFunctionInfo = AdditionalFunctionInfo ## ON ## FN ## OP ## PAR;									\
+		using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON, ON, FN);														\
+		using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN);														\
+		using AdditionalFunctionInfo = AdditionalFunctionInfo ## ON ## FN;												\
 																														\
 		constexpr auto ordersDataRI = Meta::CreateOrdersData<ON_Helper>();												\
 		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created orders data.");										\
@@ -102,26 +106,20 @@ inline int MetaOptimToFileHeaderFunc ## ON ## FN ## OP ## PAR (bool write, std::
 											 decltype(ordersCmpSwapMats), decltype(funcsCmpSwapMats)>(input);			\
 																														\
 			if([:%{^write}:])																							\
-				WriteIdxsToFile(newFuncsDataReal,																		\
-								META_PRECOMPUTE_HEADER_FILENAME(ON, FN, OP, PAR),										\
-								META_STRINGIFY(META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN, OP, PAR))				\
-								);																						\
+				WriteIdxsToFile(newFuncsDataReal, [:%{^header_filename}:], [:%{^idx_arr_name}:]);						\
 		};																												\
 	}																													\
 	return 0;																											\
 }
-// END #define META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP, PAR)
+// END #define META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP)
 
-#define META_OPTIM_TO_FILE_FUNC(ON, FN, OP, PAR) MetaOptimToFileHeaderFunc ## ON ## FN ## OP ## PAR
+#define META_OPTIM_TO_FILE_FUNC(ON, FN, OP) MetaOptimToFileHeaderFunc ## ON ## FN ## OP
 
 // Creates variables in the global namespace to be used as function arguments
 #define META_CREATE_ARGUMENTS(ON, FN)													\
-																						\
-META_DEFINE_NAMESPACE_HELPERS(ON, FN)													\
-																						\
 consteval {																				\
-	using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON, ON, FN, OP, PAR);					\
-	using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN, OP, PAR);					\
+	using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON, ON, FN);							\
+	using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN);							\
 																						\
 	constexpr auto ordersDataRI = Meta::CreateOrdersData<ON_Helper>();					\
 	Meta::meta::compiler.print("CREATE_ARGUMENTS: Created orders data.");				\
@@ -134,8 +132,8 @@ consteval {																				\
 
 #define META_CALL_FUNCTIONS_OPTIMIZED(ON, FN)															\
 consteval {																								\
-	using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON, ON, FN, OP, PAR);									\
-	using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN, OP, PAR);									\
+	using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON, ON, FN);											\
+	using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN);											\
 																										\
 	constexpr auto ordersDataRI = Meta::CreateOrdersData<ON_Helper>();									\
 	Meta::meta::compiler.print("CALL_FUNCTIONS_OPTIMIZED: Created orders data.");						\
@@ -157,18 +155,28 @@ consteval {																								\
 }
 // END #define META_CALL_FUNCTIONS_OPTIMIZED(ON, FN)
 
-#define META_DEFINE_NAMESPACE_HELPERS(ON, FN, OP, PAR)			\
+#define META_DEFINE_NAMESPACE_HELPERS(ON, FN)					\
 namespace Meta {												\
-	struct namespaceHelper ## ON ## ON ## FN ## OP ## PAR {		\
+	struct namespaceHelper ## ON ## ON ## FN {					\
 		static constexpr Meta::meta::info meta = ^ON;			\
 	};															\
-	struct namespaceHelper ## FN ## ON ## FN ## OP ## PAR {		\
+	struct namespaceHelper ## FN ## ON ## FN {					\
 		static constexpr Meta::meta::info meta = ^FN;			\
 	};															\
 }
-// END #define META_DEFINE_NAMESPACE_HELPERS(ON, FN, OP, PAR)
+// END #define META_DEFINE_NAMESPACE_HELPERS(ON, FN)
 
-#define META_NAMESPACE_HELPER_TYPE(NS, ON, FN, OP, PAR) Meta::namespaceHelper ## NS ## ON ## FN ## OP ## PAR
+#define META_NAMESPACE_HELPER_TYPE(NS, ON, FN) Meta::namespaceHelper ## NS ## ON ## FN
+
+#define META_DEFINE_ADDITIONAL_FUNCTION_INFO(ON, FN)													\
+struct AdditionalFunctionInfo ## ON ## FN {																\
+		static constexpr int funcCount = size(Meta::meta::members_of(^ FN, Meta::meta::is_function));	\
+		using orderNamespaceHelper = META_NAMESPACE_HELPER_TYPE(ON, ON, FN);							\
+		using funcNamespaceHelper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN);								\
+};
+// END #define META_DEFINE_ADDITIONAL_FUNCTION_INFO(ON, FN) 
+
+#define META_ADDITIONAL_FUNCTION_INFO_TYPE(ON, FN) Meta::AdditionalFunctionInfo ## ON ## FN
 
 #if defined(META_PRECOMPUTE)
 inline int DeleteIdxHeaderFile(const char* headerFilename) {

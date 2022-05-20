@@ -101,7 +101,9 @@ namespace Meta
 				}
 
 				// Check if ordering is valid and initialize funcs_perm
-				ProduceInitialValidOrdering(funcs, funcs_perm, fmats, funcCount);
+				auto isValidOrdering = ProduceInitialValidOrdering(funcs, funcs_perm, fmats, funcCount);
+				if(!isValidOrdering)
+					std::cout << "Reordering functions into a valid ordering" << "\n";
 
 				// Compute initial cost for difference
 				initcost = Cost(UnusedType{});
@@ -189,8 +191,8 @@ namespace Meta
 					origIdx1 = fmats.deltas[row][FuncsDeltaMat::ID_idx];
 
 					// Random a function to swap with
-					minVal = fmats.deltas.swappable_count + 1;
-					maxVal = fmats.deltas[row][fmats.deltas.swappable_count] - 1;
+					minVal = FuncsDeltaMat::values_idx;
+					maxVal = fmats.deltas[row][FuncsDeltaMat::count_idx] - 1;
 					swapUnifDistr.param(typename std::uniform_int<int>::param_type{ minVal, maxVal });
 					const int col = swapUnifDistr(gen);
 					origIdx2 = fmats.deltas[row][col];

@@ -11,7 +11,7 @@ struct DefaultOrderInputPreprocess {
 		auto& optionalParams = std::get<4>(input);
 		optionalParams = { .reps = 0, .temp = 0, .reps_increment = 0, .temp_decrement = 0, .pow_mult = 0 };
 
-		using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN, SAFunctionOrderOP, sa_params);
+		using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN);
 		const auto& funcNameIDs = Meta::FuncNameIDsHelper<FN_Helper>::nameIDs;
 
 		// Preprocess defaultOrderFuncNameArr into a nameID vector
@@ -53,10 +53,10 @@ int main() {
 	//Default order1 cost
 	std::cout << "\n\n" << "DefaultOrder1" << "\n";
 	constexpr auto defaultOrderInputPreprocess1 = DefaultOrderInputPreprocess{ defaultOrder1 };
-	META_OPTIM_TO_FILE_FUNC(ON, FN, SAFunctionOrderOP, sa_params)<defaultOrderInputPreprocess1>(false, std::optional{ sa_params });
+	META_OPTIM_TO_FILE_FUNC(ON, FN, SAFunctionOrderOP)<defaultOrderInputPreprocess1>(false, std::optional{ sa_params }, nullptr, nullptr);
 
 	//Default order2 cost
 	std::cout << "\n\n" << "DefaultOrder2" << "\n";
 	constexpr auto defaultOrderInputPreprocess2 = DefaultOrderInputPreprocess{ defaultOrder2 };
-	META_OPTIM_TO_FILE_FUNC(ON, FN, SAFunctionOrderOP, sa_params)<defaultOrderInputPreprocess2>(false, std::optional{ sa_params });
+	META_OPTIM_TO_FILE_FUNC(ON, FN, SAFunctionOrderOP)<defaultOrderInputPreprocess2>(false, std::optional{ sa_params }, nullptr, nullptr);
 }
