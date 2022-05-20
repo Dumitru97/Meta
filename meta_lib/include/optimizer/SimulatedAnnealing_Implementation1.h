@@ -61,7 +61,7 @@ namespace Meta
 			using FuncsDataType = std::remove_cvref_t<FuncsDataRealTypeIn>;
 			using OrdersCmpSwapMatsType = std::remove_cvref_t<OrdersCmpSwapMatsTypeIn>;
 			using FuncsCmpSwapMatsType = std::remove_cvref_t<FuncsCmpSwapMatsTypeIn>;
-			using FuncsDeltaMat = decltype(FuncsCmpSwapMatsType::deltas);
+			using OnlyMat = typename FuncsCmpSwapMatsType::OnlyMat;
 			using UnusedType = int;
 
 			// Member variables
@@ -123,7 +123,7 @@ namespace Meta
 			}
 
 			bool CanBeOptimized(UnusedType) {
-				return funcCount > 1 && fmats.deltas.swappable_count > 0;
+				return funcCount > 1 && fmats.swap_only.count > 0;
 			}
 
 			cost_t Cost(const UnusedType) {
@@ -185,17 +185,17 @@ namespace Meta
 				while (!validSwap) {
 					// Random a swappable function
 					auto minVal = 0;
-					auto maxVal = fmats.deltas.swappable_count - 1;
+					auto maxVal = fmats.swap_only.count - 1;
 					swapUnifDistr.param(typename std::uniform_int<int>::param_type{ minVal, maxVal });
 					const auto row = swapUnifDistr(gen);
-					origIdx1 = fmats.deltas[row][FuncsDeltaMat::ID_idx];
+					origIdx1 = fmats.swap_only[row][OnlyMat::ID_idx];
 
 					// Random a function to swap with
-					minVal = FuncsDeltaMat::values_idx;
-					maxVal = fmats.deltas[row][FuncsDeltaMat::count_idx] - 1;
+					minVal = OnlyMat::values_idx;
+					maxVal = fmats.swap_only[row][OnlyMat::count_idx] - 1;
 					swapUnifDistr.param(typename std::uniform_int<int>::param_type{ minVal, maxVal });
 					const int col = swapUnifDistr(gen);
-					origIdx2 = fmats.deltas[row][col];
+					origIdx2 = fmats.swap_only[row][col];
 
 					// Order because array limit cases in CostAndApply
 					if (funcs_perm[origIdx2] < funcs_perm[origIdx1])

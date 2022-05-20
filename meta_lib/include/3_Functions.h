@@ -239,15 +239,17 @@ namespace Meta
 
 	template<size_t funcCount, typename orderNamespaceHelperIn, typename funcNamespaceHelperIn>
 	struct FuncsCmpSwapMats {
-		// Holds for every function that can be swapped with, all the functions that it can be swapped with
-		struct DeltaMat {
+		// Holds for every function that can be X with, all the functions that it can be X with
+
+		struct OnlyMat {
 			static constexpr size_t ID_idx = 0;
 			static constexpr size_t count_idx = 1;
 			static constexpr size_t values_idx = 2;
 
-			struct DeltaRow {
-				std::array<int, funcCount + 1> arr{}; // +2(func id and row size) -1(excluding self swapping)
+			struct OnlyRow {
+				std::array<int, funcCount + 1> arr{}; // +2(func id and row size) -1(excluding self)
 
+				auto data()  const { return &arr[values_idx]; }
 				auto count() const { return  arr[count_idx]; }
 				auto begin() const { return &arr[values_idx]; }
 				auto end()   const { return &arr[values_idx + count() - 1] + 1; }
@@ -257,11 +259,12 @@ namespace Meta
 				auto& operator[] (int i) { return arr[i]; }
 			};
 
-			std::array<DeltaRow, funcCount> mat{}; // count <= funcCount 
-			int swappable_count;				   // Number of swappable functions in mat
+			std::array<OnlyRow, funcCount> mat{}; // count <= funcCount 
+			int count;							  // Number of function rows in mat
 
+			auto data()  const { return &mat[0]; }
 			auto begin() const { return &mat[0]; }
-			auto end()   const { return &mat[swappable_count - 1] + 1; }
+			auto end()   const { return &mat[count - 1] + 1; }
 
 			const auto& operator[] (int i) const { return mat[i]; }
 			auto& operator[] (int i) { return mat[i]; }
@@ -269,12 +272,14 @@ namespace Meta
 
 		static inline std::array<std::array<bool, funcCount>, funcCount> swap{}; // <=>
 		static inline std::array<std::array<bool, funcCount>, funcCount> cmp{};  // <
-		static inline DeltaMat deltas{};
+		static inline OnlyMat swap_only{};
+		static inline OnlyMat cmp_only{};
 		static inline bool isComputed = false;
 
 		using SwapMatType = decltype(swap);
 		using CmpMatType = decltype(cmp);
-		using DeltaMatType = decltype(deltas);
+		using SwapOnlyMatType = decltype(swap_only);
+		using CmpOnlyMatType = decltype(cmp_only);
 
 		template<typename AdditionalFunctionInfo>
 		friend bool operator<(const function<AdditionalFunctionInfo>& lhs,
@@ -349,32 +354,37 @@ namespace Meta
 				funcsCmpSwapMats.swap[j][i] = cmp.first && cmp.second;
 			}
 
-		// Compute deltas matrix
-		using DeltaMatType = decltype(funcsCmpSwapMats.deltas);
+		// Compute cmp_only and swap_only matrices
+		auto compute_only_matrix = [](auto& mat, auto& only_may) {
+			using OnlyMatType = std::remove_cvref_t<decltype(only_may)>;
 
-		int row_pos = 0;
-		for (int i = 0; i < funcCount; ++i) {
-			int col_pos = DeltaMatType::values_idx;
-			for (int j = 0; j < i; ++j) {
-				if (funcsCmpSwapMats.swap[i][j])
-					funcsCmpSwapMats.deltas[row_pos][col_pos++] = j;
+			int row_pos = 0;
+			for (int i = 0; i < funcCount; ++i) {
+				int col_pos = OnlyMatType::values_idx;
+				for (int j = 0; j < i; ++j) {
+					if (mat[i][j])
+						only_may[row_pos][col_pos++] = j;
+				}
+				for (int j = i + 1; j < funcCount; ++j) {
+					if (mat[i][j])
+						only_may[row_pos][col_pos++] = j;
+				}
+
+				const int row_size = col_pos - OnlyMatType::values_idx;
+
+				// If unswappable, do not include
+				if (row_size == 0)
+					continue;
+
+				only_may[row_pos][OnlyMatType::ID_idx] = i; // Func ID
+				only_may[row_pos][OnlyMatType::count_idx] = row_size;
+				++row_pos;
 			}
-			for (int j = i + 1; j < funcCount; ++j) {
-				if (funcsCmpSwapMats.swap[i][j])
-					funcsCmpSwapMats.deltas[row_pos][col_pos++] = j;
-			}
+			only_may.count = row_pos;
+		};
 
-			const int row_size = col_pos - DeltaMatType::values_idx;
-
-			// If unswappable, do not include
-			if (row_size == 0)
-				continue;
-
-			funcsCmpSwapMats.deltas[row_pos][DeltaMatType::ID_idx] = i; // Func ID
-			funcsCmpSwapMats.deltas[row_pos][DeltaMatType::count_idx] = row_size;
-			++row_pos;
-		}
-		funcsCmpSwapMats.deltas.swappable_count = row_pos;
+		compute_only_matrix(funcsCmpSwapMats.cmp, funcsCmpSwapMats.cmp_only);
+		compute_only_matrix(funcsCmpSwapMats.swap, funcsCmpSwapMats.swap_only);
 
 		funcsCmpSwapMats.isComputed = true;
 		return funcsCmpSwapMats;

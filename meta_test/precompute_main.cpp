@@ -1,4 +1,5 @@
 #include "include/MetaArguments1.h"
+#include "include/MetaArguments2.h"
 
 //For default orders cost calculation
 #include "include/simulation/DefaultCallOrderFuncNames.h"

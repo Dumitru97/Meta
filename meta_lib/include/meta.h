@@ -51,14 +51,19 @@ namespace meta = std::experimental::meta;
 #define META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN, OP, PAR) precomputed_fidxs_##ON_##FN_##OP_##PAR
 
 #if defined(META_PRECOMPUTE)
-#define META_DEFINITIONS(ON, FN, OP)			\
+#define META_DEFINITIONS_ON_FN(ON, FN)			\
 META_DEFINE_NAMESPACE_HELPERS(ON, FN)			\
-META_DEFINE_ADDITIONAL_FUNCTION_INFO(ON, FN)	\
+META_DEFINE_ADDITIONAL_FUNCTION_INFO(ON, FN)
+// END #define META_DEFINITIONS_ON_FN(ON, FN)
+
+#define META_DEFINITIONS_ON_FN_OP(ON, FN, OP)	\
 META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP)
-// END #define META_DEFINITIONS(ON, FN)
+// END #define META_DEFINITIONS_ON_FN_OP(ON, FN, OP)
 #else
-#define META_DEFINITIONS(ON, FN, OP) META_DEFINE_NAMESPACE_HELPERS(ON, FN)
+#define META_DEFINITIONS_ON_FN(ON, FN) META_DEFINE_NAMESPACE_HELPERS(ON, FN)
+#define META_DEFINITIONS_ON_FN_OP(ON, FN, OP)
 #endif // defined(META_PRECOMPUTE)
+
 
 // Scans functions and runs simulated annealing over them to determine the best ordering. Writes indexes to header file.
 #define META_PRECOMPUTE_FUNC_IDXS(ON, FN, OP, PAR)																					\
