@@ -52,12 +52,12 @@ DefaultOrderInputPreprocess(const T& cont)->DefaultOrderInputPreprocess<std::rem
 
 int main() {
 	//Default order1 cost
-	std::cout << "\n\n" << "DefaultOrder1" << "\n";
+	std::cout << "DefaultOrder1" << "\n";
 	constexpr auto defaultOrderInputPreprocess1 = DefaultOrderInputPreprocess{ defaultOrder1 };
 	META_OPTIM_TO_FILE_FUNC(ON, FN, SAFunctionOrderOP)<defaultOrderInputPreprocess1>(false, std::optional{ sa_params }, nullptr, nullptr);
 
 	//Default order2 cost
-	std::cout << "\n\n" << "DefaultOrder2" << "\n";
+	std::cout << "DefaultOrder2" << "\n";
 	constexpr auto defaultOrderInputPreprocess2 = DefaultOrderInputPreprocess{ defaultOrder2 };
 	META_OPTIM_TO_FILE_FUNC(ON, FN, SAFunctionOrderOP)<defaultOrderInputPreprocess2>(false, std::optional{ sa_params }, nullptr, nullptr);
 }

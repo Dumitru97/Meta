@@ -36,7 +36,7 @@ endif()
 
 # Preprocessor definitions
 target_compile_definitions(meta_test PRIVATE Vc_GNU_ASM)
-target_compile_definitions(meta_test_precompute PRIVATE Vc_GNU_ASM META_PRECOMPUTE META_PRECOMPUTE_HEADER_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/include/generated/")
+target_compile_definitions(meta_test_precompute PRIVATE Vc_GNU_ASM META_PRECOMPUTE_PHASE META_PRECOMPUTE_HEADER_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/include/generated/")
 
 # Linking libraries and includes
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/../libs/Vc/Vc-src/cmake)

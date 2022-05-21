@@ -21,38 +21,51 @@ namespace Meta
 
             BBParams bb_params = { .pqueueThresh = std::max(funcCount * funcCount, 5000), .cullRatio = 0.55f };
 
-            struct bound {
-                float value;
-                float cost;
-                int sn;
+            using FuncsDataType = std::remove_cvref_t<FuncsDataRealTypeIn>;
+            using FuncsCmpSwapMatsType = std::remove_cvref_t<FuncsCmpSwapMatsTypeIn>;
+            using OnlyMat = typename FuncsCmpSwapMatsType::OnlyMat;
+            using cost_t = float;
 
-                bool operator>(const bound& rhs) const {
-                    const auto asp1 = (value - cost) / (N - sn);
-                    const auto asp2 = (rhs.value - rhs.cost) / (N - rhs.sn);
-                    const auto ac1 = cost / sn;
-                    const auto ac2 = rhs.cost / rhs.sn;
+            FuncsDataType fdata;
+            FuncsCmpSwapMatsType fmats;
+            decltype(fdata.funcs)& funcs = fdata.funcs;
 
-                    return (ac1 + asp1) > (ac2 + asp2);
-                    //return (value / sn) > (rhs.value / rhs.sn);
-                }
-            };
+            static constexpr int funcCount = FuncsDataType::count;
+            static constexpr int N = funcCount;
+            std::array<std::array<cost_t, N>, N> costm;
+            std::array<cost_t, N> min_costs;
+            std::array<cost_t, N> avg_costs;
 
-            bound calc_lb(float cost_in, std::span<const int> current_options) {
-                bound lb_cost{ cost_in, cost_in, (int)(N - current_options.size()) };
+            FuncsDataType initFuncsData;
+            float initcost;
 
-                for (int i = 0; i < current_options.size(); ++i)
-                    lb_cost.value += min_costs[current_options[i]];
-
-                return lb_cost;
-            }
-
+            // Class definitions
+        public:
             struct ctx {
-                bound lb;
+                cost_t cost;
+                cost_t lb;
+                cost_t avs;
+
                 std::vector<int> sol;
                 std::vector<int> options;
+                std::array<cost_t, N>* min_costs_ptr;
 
                 bool operator>(const ctx& rhs) const {
-                    return lb > rhs.lb;
+                    int points = 0, rhs_points = 0;
+
+                    for (int i = 0; i < options.size(); ++i) {
+                        const int opt = options[i];
+                        //points += (avg_costs[opt] > ((rhs.cost + rhs.avs) - (cost + avs - avg_costs[opt]) - min_costs[opt]));
+                        points += (0 > ((rhs.cost + rhs.avs) - (cost + avs) - (*min_costs_ptr)[opt]));
+                    }
+
+                    for (int i = 0; i < rhs.options.size(); ++i) {
+                        const int opt = rhs.options[i];
+                        //points += (avg_costs[opt] > ((rhs.cost + rhs.avs) - (cost + avs - avg_costs[opt]) - min_costs[opt]));
+                        rhs_points += (0 > ((cost + avs) - (rhs.cost + rhs.avs) - (*min_costs_ptr)[opt]));
+                    }
+
+                    return points > rhs_points;
                 };
             };
 
@@ -73,20 +86,50 @@ namespace Meta
 
                     remove_if([&nth](ctx& ctx) {
                         return ctx > nth;
-                    });
+                        });
                 }
             };
+
+
+            // Primary member variables
+            std::array<int, N> best_sol;
+            int sol_num;
+            cost_t hb = FLT_MAX;
+
+            ext_priority_queue<ctx> pqueue;
+            bool cleanpq = false;
+
+
+            // Computation methods
+        public:
+            cost_t calc_lb(cost_t cost_in, std::span<const int> current_options) {
+                cost_t lb_cost = cost_in;
+
+                for (int i = 0; i < current_options.size(); ++i)
+                    lb_cost += min_costs[current_options[i]];
+
+                return lb_cost;
+            }
+
+            cost_t calc_avs(std::span<const int> current_options) {
+                cost_t avs_cost = 0.0f;
+
+                for (int i = 0; i < current_options.size(); ++i)
+                    avs_cost += avg_costs[current_options[i]];
+
+                return avs_cost;
+            }
 
             void BB(const ctx& prev_ctx) {
                 // Add new nodes
                 const auto prev = prev_ctx.sol[prev_ctx.sol.size() - 1];
-                const auto prev_cost = prev_ctx.lb.cost;
+                const auto prev_cost = prev_ctx.cost;
 
                 for (int i = 0; i < prev_ctx.options.size(); ++i) {
                     const auto curr = prev_ctx.options[i];
                     const auto cost = prev_cost + costm[prev][curr];
 
-                    if (cost < hb.value)
+                    if (cost < hb)
                     {
                         ctx ctx;
                         const std::span next_options{ fmats.cmp_only[curr].data(), (size_t)fmats.cmp_only[curr].count() };
@@ -100,21 +143,25 @@ namespace Meta
                             continue;
 
                         ctx.options.resize(ctxOptionsSize);
-                        const bound lb = calc_lb(cost, ctx.options);
+                        const cost_t lb = calc_lb(cost, ctx.options);
 
-                        if (lb.value < hb.value) {
+                        if (lb < hb) {
                             ctx.options.shrink_to_fit();
 
                             ctx.sol.resize(prev_ctx.sol.size() + 1);
                             std::copy(prev_ctx.sol.begin(), prev_ctx.sol.end(), ctx.sol.begin());
                             ctx.sol[prev_ctx.sol.size()] = curr;
 
+                            ctx.cost = cost;
                             ctx.lb = lb;
+                            ctx.avs = calc_avs(ctx.options);
+                            ctx.min_costs_ptr = &min_costs;
 
                             if (ctx.sol.size() == N) {
-                                if (ctx.lb.cost < hb.value) {
-                                    hb = bound{ ctx.lb.cost, ctx.lb.cost, N };
-                                    std::cout << "Found cost: " << ctx.lb.cost << "\n";
+                                std::cout << "Found cost: " << ctx.cost << "\n";
+
+                                if (ctx.cost < hb) {
+                                    hb = ctx.cost;
                                     std::copy(ctx.sol.begin(), ctx.sol.end(), best_sol.begin());
                                     cleanpq = true;
                                 }
@@ -135,15 +182,18 @@ namespace Meta
                     if (options.size() != N - 1)
                         continue;
 
-                    const bound lb = calc_lb(0, options);
+                    const cost_t lb = calc_lb(0, options);
 
-                    if (lb.value < hb.value) {
+                    if (lb < hb) {
                         ctx ctx;
 
                         ctx.sol.push_back(i);
                         ctx.options.resize(options.size());
                         std::copy(options.begin(), options.end(), ctx.options.begin());
+                        ctx.cost = 0.0f;
                         ctx.lb = lb;
+                        ctx.avs = calc_avs(ctx.options);
+                        ctx.min_costs_ptr = &min_costs;
 
                         pqueue.push(ctx);
                     }
@@ -154,7 +204,7 @@ namespace Meta
                     if (cleanpq) {
                         pqueue.remove_if(
                             [this](ctx& ctx) {
-                                return ctx.lb.value >= hb.value;
+                                return ctx.lb >= hb;
                             });
                         cleanpq = false;
                     }
@@ -167,7 +217,7 @@ namespace Meta
 
                     const auto& ctxref = pqueue.top();
 
-                    if (ctxref.lb.value < hb.value) {
+                    if (ctxref.lb < hb) {
                         const auto ctx = pqueue.top();
                         pqueue.pop();
                         BB(ctx);
@@ -197,31 +247,6 @@ namespace Meta
                 return fdata;
             }
 
-            using FuncsDataType = std::remove_cvref_t<FuncsDataRealTypeIn>;
-            using FuncsCmpSwapMatsType = std::remove_cvref_t<FuncsCmpSwapMatsTypeIn>;
-            using OnlyMat = typename FuncsCmpSwapMatsType::OnlyMat;
-            using cost_t = float;
-
-            FuncsDataType fdata;
-            FuncsCmpSwapMatsType fmats;
-            decltype(fdata.funcs)& funcs = fdata.funcs;
-
-            static constexpr int funcCount = FuncsDataType::count;
-            static constexpr int N = funcCount;
-            std::array<std::array<cost_t, N>, N> costm;
-            std::array<cost_t, N> min_costs;
-
-            FuncsDataType initFuncsData;
-            float initcost;
-
-            std::array<int, N> best_sol;
-            int sol_num;
-
-            bound hb = { FLT_MAX, FLT_MAX, N };
-
-            ext_priority_queue<ctx> pqueue;
-            bool cleanpq = false;
-
             cost_t Cost(auto& funcs) {
                 cost_t cost = 0.0f;
                 for (int i = 0; i < funcCount - 1; ++i)
@@ -234,6 +259,8 @@ namespace Meta
                 fdata = std::get<1>(ord_funcs_data_and_mat_tuple_and_params);
                 fmats = std::get<3>(ord_funcs_data_and_mat_tuple_and_params);
                 auto optionalParams = std::get<4>(ord_funcs_data_and_mat_tuple_and_params);
+
+                static_assert(funcCount == N);
 
                 std::cout << "Running BranchAndBound.\n";
                 initFuncsData = fdata;
@@ -266,7 +293,11 @@ namespace Meta
 
                 for (int i = 0; i < N; ++i) {
                     for (int j = i + 1; j < N; ++j) {
-                        const float cost = JaccardIndexOfSortedSets(fdata.f_params(funcs[i]), fdata.f_params(funcs[j]));
+                        const auto func_i = funcs_perm[i];
+                        const auto func_j = funcs_perm[j];
+
+                        const float cost = JaccardIndexOfSortedSets(fdata.f_params(funcs[func_i]),
+                                                                    fdata.f_params(funcs[func_j]));
                         costm[i][j] = cost;
                         costm[j][i] = cost;
 
@@ -277,9 +308,18 @@ namespace Meta
                     }
                 }
 
+                for (int i = 0; i < N; ++i) {
+                    cost_t sum = 0;
+                    for (int j = 0; j < N; ++j) {
+                        if (i != j)
+                            sum += costm[i][j];
+                    }
+                    avg_costs[i] = sum / (N - 1);
+                }
+
                 // Compute initial cost for difference
                 initcost = Cost(funcs);
-                hb = bound{ initcost, initcost, funcCount };
+                hb = initcost;
             }
 
         };

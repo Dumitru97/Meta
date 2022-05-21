@@ -15,34 +15,50 @@
 using namespace std::chrono;
 
 // Defined in MetaTU.cpp
-void CallOptimizedOrder();
+void CallOptimizedOrderSA();
+void CallOptimizedOrderBB();
 void InitArgumentVariables(int acts, int objs);
 void CallDefaultOrder1Wrapper();
 void CallDefaultOrder2Wrapper();
 
+// Local definitions
+enum CallOrderType : int {
+	DEFAULT1,
+	DEFAULT2,
+	SA,
+	BB
+};
+
 // Prototypes
-std::pair<float, float> TestWith(int acts, int objs, int reps);
+template<CallOrderType callOrderType>
+std::pair<float, float> TestWith(int acts, int objs, int reps, const char* opti_name);
+
 void PrintResultTable(const std::vector<int>& acts_arr,
 	                  const std::vector<int>& objs_arr,
 	                  const std::vector<std::pair<float, float>>& result_mat);
 
 int main() {
-	std::vector<int> acts_arr{ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024 };
-	std::vector<int> objs_arr{ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024 };
-	std::vector<std::pair<float,float>> result_mat;
-	const int work = 8;
+	auto bench = [] <CallOrderType callOrderType> (const char* opti_name) {
+		std::vector<int> acts_arr{ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024 };
+		std::vector<int> objs_arr{ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024 };
+		std::vector<std::pair<float, float>> result_mat;
+		const int work = 8;
 
-	for (int i = 0; i < acts_arr.size(); ++i)
-		for (int j = 0; j < objs_arr.size(); ++j) {
-			const int acts = acts_arr[i];
-			const int objs = objs_arr[j];
-			const int reps = work * (acts_arr.back() / acts_arr[i]) * (objs_arr.back() / objs_arr[j]);
+		for (int i = 0; i < acts_arr.size(); ++i)
+			for (int j = 0; j < objs_arr.size(); ++j) {
+				const int acts = acts_arr[i];
+				const int objs = objs_arr[j];
+				const int reps = work * (acts_arr.back() / acts_arr[i]) * (objs_arr.back() / objs_arr[j]);
 
-			auto results = TestWith(acts, objs, reps);
-			result_mat.push_back(results);
-		}
+				auto results = TestWith<callOrderType>(acts, objs, reps, opti_name);
+				result_mat.push_back(results);
+			}
 
-	PrintResultTable(acts_arr, objs_arr, result_mat);
+		PrintResultTable(acts_arr, objs_arr, result_mat);
+	};
+
+	bench.template operator()<CallOrderType::BB>("BB       ");
+	bench.template operator()<CallOrderType::SA>("SA       ");
 
 #ifdef _WIN32
 	system("pause");
@@ -69,26 +85,21 @@ double BenchmarkSimulation(auto&& func, int reps) {
 	return (double)dur.count() / reps;
 }
 
-enum CallOrderType {
-	DEFAULT1,
-	DEFAULT2,
-	OPTIMIZED
-};
-
 template<CallOrderType callOrderType>
 void RunSimulation(int reps) {
-	if constexpr (callOrderType == DEFAULT1)
-		for (int i = 0; i < reps; ++i)
+	for (int i = 0; i < reps; ++i)
+		if constexpr (callOrderType == DEFAULT1)
 			CallDefaultOrder1Wrapper();
-	else if constexpr (callOrderType == DEFAULT2)
-		for (int i = 0; i < reps; ++i)
+		else if constexpr (callOrderType == DEFAULT2)
 			CallDefaultOrder2Wrapper();
-	else if constexpr (callOrderType == OPTIMIZED)
-		for (int i = 0; i < reps; ++i)
-			CallOptimizedOrder();
+		else if constexpr (callOrderType == SA)
+			CallOptimizedOrderSA();
+		else if constexpr (callOrderType == BB)
+			CallOptimizedOrderBB();
 }
 
-std::pair<float, float> TestWith(int acts, int objs, int reps) {
+template<CallOrderType callOrderType>
+std::pair<float, float> TestWith(int acts, int objs, int reps, const char* opti_name) {
 	InitArgumentVariables(acts, objs);
 	std::cout << std::format("Benchmarking with acts={0}, objs={1}, optimiz={2}, reps={3}\t", acts, objs, "DefOrder1", reps);
 	auto r1 = BenchmarkSimulation(RunSimulation<DEFAULT1>, reps);
@@ -98,8 +109,8 @@ std::pair<float, float> TestWith(int acts, int objs, int reps) {
 	auto r2 = BenchmarkSimulation(RunSimulation<DEFAULT2>, reps);
 
 	InitArgumentVariables(acts, objs);
-	std::cout << std::format("Benchmarking with acts={0}, objs={1}, optimiz={2}, reps={3}\t", acts, objs, "SA       ", reps);
-	auto r3 = BenchmarkSimulation(RunSimulation<OPTIMIZED>, reps);
+	std::cout << std::format("Benchmarking with acts={0}, objs={1}, optimiz={2}, reps={3}\t", acts, objs, opti_name, reps);
+	auto r3 = BenchmarkSimulation(RunSimulation<callOrderType>, reps);
 
 	auto compare = [](const char* a_str, const char* b_str, auto a, auto b, float print_thresh_perc) {
 		float thresh = print_thresh_perc;
@@ -118,8 +129,8 @@ std::pair<float, float> TestWith(int acts, int objs, int reps) {
 		return value;
 	};
 
-	auto cmp_do1 = compare("SA", "DefOrder1", r3, r1, 1);
-	auto cmp_do2 = compare("SA", "DefOrder2", r3, r2, 1);
+	auto cmp_do1 = compare(opti_name, "DefOrder1", r3, r1, 1);
+	auto cmp_do2 = compare(opti_name, "DefOrder2", r3, r2, 1);
 
 	std::cout << '\n';
 

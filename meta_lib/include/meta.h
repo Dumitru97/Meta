@@ -4,7 +4,7 @@
 #include "3_Functions.h"
 #include "misc/print.h"
 
-#if defined(META_PRECOMPUTE)
+#if defined(META_PRECOMPUTE_PHASE)
 #include "misc/func_format.h"
 #include "misc/print.h"
 
@@ -14,7 +14,7 @@
 #else
 #include "4_Arguments.h"
 #include "5_Calls.h"
-#endif // defined(META_PRECOMPUTE)
+#endif // defined(META_PRECOMPUTE_PHASE)
 
 #include <fstream>
 #include <filesystem>
@@ -31,14 +31,16 @@ namespace meta = std::experimental::meta;
 // Selects whether to precompute function indexes and write to header file or create function arguments.
 // This macro should be called alone in a header file. Include the header in the main project and in the precompute project.
 // In this way the precompute project won't compile unnecessary source files from the main project.
-#if defined(META_PRECOMPUTE)
-#define META_PRECOMPUTE_OR_CREATE_ARGUMENTS(order_namespace, function_namespace, optimizer_op_adapter, optimizer_op_params)\
+#if defined(META_PRECOMPUTE_PHASE)
+#define META_PRECOMPUTE(order_namespace, function_namespace, optimizer_op_adapter, optimizer_op_params)\
 			META_PRECOMPUTE_FUNC_IDXS(order_namespace, function_namespace, optimizer_op_adapter, optimizer_op_params)
+#define META_CREATE_ARGUMENTS(order_namespace, function_namespace) 
 #define META_INCLUDE_IDXS_HEADER(PATH, ON, FN, OP, PAR) "misc/empty.h"
 #else
-#define META_PRECOMPUTE_OR_CREATE_ARGUMENTS(order_namespace, function_namespace, optimizer_op_adapter, optimizer_op_params) META_CREATE_ARGUMENTS(order_namespace, function_namespace)
+#define META_PRECOMPUTE(order_namespace, function_namespace, optimizer_op_adapter, optimizer_op_params)
+#define META_CREATE_ARGUMENTS(order_namespace, function_namespace) META_CREATE_ARGUMENTS_INTERNAL(order_namespace, function_namespace)
 #define META_INCLUDE_IDXS_HEADER(PATH, ON, FN, OP, PAR) META_STRINGIFY(PATH/META_PRECOMPUTE_HEADER(ON, FN, OP, PAR))
-#endif // defined(META_PRECOMPUTE)
+#endif // defined(META_PRECOMPUTE_PHASE)
 
 
 // Strings and identifiers
@@ -46,11 +48,11 @@ namespace meta = std::experimental::meta;
 #define META_PRECOMPUTE_HEADER_DIRECTORY ""
 #endif
 
-#define META_PRECOMPUTE_HEADER(ON, FN, OP, PAR) PrecomputedFuncIndxs_##ON##_##FN_##OP_##PAR
+#define META_PRECOMPUTE_HEADER(ON, FN, OP, PAR) PrecomputedFuncIndxs_##ON##_##FN##_##OP##_##PAR
 #define META_PRECOMPUTE_HEADER_FILENAME(ON, FN, OP, PAR) META_PRECOMPUTE_HEADER_DIRECTORY META_STRINGIFY(META_PRECOMPUTE_HEADER(ON, FN, OP, PAR))
-#define META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN, OP, PAR) precomputed_fidxs_##ON_##FN_##OP_##PAR
+#define META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN, OP, PAR) precomputed_fidxs_##ON##_##FN##_##OP##_##PAR
 
-#if defined(META_PRECOMPUTE)
+#if defined(META_PRECOMPUTE_PHASE)
 #define META_DEFINITIONS_ON_FN(ON, FN)			\
 META_DEFINE_NAMESPACE_HELPERS(ON, FN)			\
 META_DEFINE_ADDITIONAL_FUNCTION_INFO(ON, FN)
@@ -62,15 +64,15 @@ META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP)
 #else
 #define META_DEFINITIONS_ON_FN(ON, FN) META_DEFINE_NAMESPACE_HELPERS(ON, FN)
 #define META_DEFINITIONS_ON_FN_OP(ON, FN, OP)
-#endif // defined(META_PRECOMPUTE)
+#endif // defined(META_PRECOMPUTE_PHASE)
 
 
 // Scans functions and runs simulated annealing over them to determine the best ordering. Writes indexes to header file.
 #define META_PRECOMPUTE_FUNC_IDXS(ON, FN, OP, PAR)																					\
 namespace Meta																														\
 {																																	\
-inline int MetaOptimCleanFile ## ON ## FN ## OP ## PAR = DeleteIdxHeaderFile(META_PRECOMPUTE_HEADER_FILENAME(ON, FN, OP, PAR));		\
-inline int MetaOptimToFile ## ON ## FN ## OP ## PAR = META_OPTIM_TO_FILE_FUNC(ON, FN, OP)<identity{}>(true, std::optional{ PAR },	\
+inline int MetaOptimCleanFile_##ON##_##FN##_##OP##_##PAR = DeleteIdxHeaderFile(META_PRECOMPUTE_HEADER_FILENAME(ON, FN, OP, PAR));	\
+inline int MetaOptimToFile_##ON##_##FN##_##OP##_##PAR = META_OPTIM_TO_FILE_FUNC(ON, FN, OP)<identity{}>(true, std::optional{ PAR },	\
 														META_PRECOMPUTE_HEADER_FILENAME(ON, FN, OP, PAR),							\
 														META_STRINGIFY(META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN, OP, PAR)));	\
 }
@@ -80,13 +82,13 @@ inline int MetaOptimToFile ## ON ## FN ## OP ## PAR = META_OPTIM_TO_FILE_FUNC(ON
 namespace Meta																											\
 {																														\
 template<auto SAInputPreprocessFunctor, typename paramsType>															\
-inline int MetaOptimToFileHeaderFunc ## ON ## FN ## OP (bool write, std::optional<paramsType> paramsIn,					\
+inline int MetaOptimToFileHeaderFunc_##ON##_##FN##_##OP (bool write, std::optional<paramsType> paramsIn,				\
 													    const char* header_filename, const char* idx_arr_name)			\
 {																														\
 	consteval {																											\
 		using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON, ON, FN);														\
 		using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN);														\
-		using AdditionalFunctionInfo = AdditionalFunctionInfo ## ON ## FN;												\
+		using AdditionalFunctionInfo = AdditionalFunctionInfo_##ON##_##FN ;												\
 																														\
 		constexpr auto ordersDataRI = Meta::CreateOrdersData<ON_Helper>();												\
 		Meta::meta::compiler.print("PRECOMPUTE_FUNC_IDXS: Created orders data.");										\
@@ -120,10 +122,10 @@ inline int MetaOptimToFileHeaderFunc ## ON ## FN ## OP (bool write, std::optiona
 }																														\
 // END #define META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP)
 
-#define META_OPTIM_TO_FILE_FUNC(ON, FN, OP) Meta::MetaOptimToFileHeaderFunc ## ON ## FN ## OP
+#define META_OPTIM_TO_FILE_FUNC(ON, FN, OP) Meta::MetaOptimToFileHeaderFunc_##ON##_##FN##_##OP
 
 // Creates variables in the global namespace to be used as function arguments
-#define META_CREATE_ARGUMENTS(ON, FN)													\
+#define META_CREATE_ARGUMENTS_INTERNAL(ON, FN)											\
 consteval {																				\
 	using ON_Helper = META_NAMESPACE_HELPER_TYPE(ON, ON, FN);							\
 	using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN);							\
@@ -135,7 +137,7 @@ consteval {																				\
 	Meta::CreateArguments<paramsDataI>();												\
 	Meta::meta::compiler.print("CREATE_ARGUMENTS: Created arguments.");					\
 }
-// END #define META_CREATE_ARGUMENTS(ON, FN)
+// END #define META_CREATE_ARGUMENTS_INTERNAL(ON, FN)
 
 #define META_CALL_FUNCTIONS_OPTIMIZED(ON, FN, OP, PAR)													\
 consteval {																								\
@@ -164,20 +166,20 @@ consteval {																								\
 
 #define META_DEFINE_NAMESPACE_HELPERS(ON, FN)					\
 namespace Meta {												\
-	struct namespaceHelper ## ON ## ON ## FN {					\
+	struct namespaceHelper_##ON##_##ON##_##FN {					\
 		static constexpr Meta::meta::info meta = ^ON;			\
 	};															\
-	struct namespaceHelper ## FN ## ON ## FN {					\
+	struct namespaceHelper_##FN##_##ON##_##FN {					\
 		static constexpr Meta::meta::info meta = ^FN;			\
 	};															\
 }
 // END #define META_DEFINE_NAMESPACE_HELPERS(ON, FN)
 
-#define META_NAMESPACE_HELPER_TYPE(NS, ON, FN) Meta::namespaceHelper ## NS ## ON ## FN
+#define META_NAMESPACE_HELPER_TYPE(NS, ON, FN) Meta::namespaceHelper_##NS##_##ON##_##FN
 
 #define META_DEFINE_ADDITIONAL_FUNCTION_INFO(ON, FN)														\
 namespace Meta {																							\
-	struct AdditionalFunctionInfo ## ON ## FN {																\
+	struct AdditionalFunctionInfo_##ON##_##FN {																\
 			static constexpr int funcCount = size(Meta::meta::members_of(^ FN, Meta::meta::is_function));	\
 			using orderNamespaceHelper = META_NAMESPACE_HELPER_TYPE(ON, ON, FN);							\
 			using funcNamespaceHelper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN);								\
@@ -185,9 +187,9 @@ namespace Meta {																							\
 }																											\
 // END #define META_DEFINE_ADDITIONAL_FUNCTION_INFO(ON, FN) 
 
-#define META_ADDITIONAL_FUNCTION_INFO_TYPE(ON, FN) Meta::AdditionalFunctionInfo ## ON ## FN
+#define META_ADDITIONAL_FUNCTION_INFO_TYPE(ON, FN) Meta::AdditionalFunctionInfo_##ON##_##FN
 
-#if defined(META_PRECOMPUTE)
+#if defined(META_PRECOMPUTE_PHASE)
 inline int DeleteIdxHeaderFile(const char* headerFilename) {
 	bool exists = std::filesystem::exists(headerFilename);
 	if (exists)
@@ -224,7 +226,7 @@ inline void WriteIdxsToFile(const auto& newFuncsDataReal, const char* headerFile
 
 	f.close();
 }
-#endif // defined(META_PRECOMPUTE)
+#endif // defined(META_PRECOMPUTE_PHASE)
 
 #define META_STRINGIFY_IMPL(X) #X
 #define META_STRINGIFY(X) META_STRINGIFY_IMPL(X)
