@@ -23,8 +23,9 @@ namespace Meta
 
             using FuncsDataType = std::remove_cvref_t<FuncsDataRealTypeIn>;
             using FuncsCmpSwapMatsType = std::remove_cvref_t<FuncsCmpSwapMatsTypeIn>;
+            using orderNamespaceHelper = typename FuncsDataType::AdditionalFunctionInfo::orderNamespaceHelper;
+            using funcNamespaceHelper = typename FuncsDataType::AdditionalFunctionInfo::funcNamespaceHelper;
             using OnlyMat = typename FuncsCmpSwapMatsType::OnlyMat;
-            using cost_t = float;
 
             FuncsDataType fdata;
             FuncsCmpSwapMatsType fmats;
@@ -32,9 +33,10 @@ namespace Meta
 
             static constexpr int funcCount = FuncsDataType::count;
             static constexpr int N = funcCount;
-            std::array<std::array<cost_t, N>, N> costm;
-            std::array<cost_t, N> min_costs;
-            std::array<cost_t, N> avg_costs;
+
+            FuncsJaccardCostMats<funcCount, orderNamespaceHelper, funcNamespaceHelper> cmats;
+            using cmatsType = decltype(cmats);
+            using cost_t = typename decltype(cmats)::cost_t;
 
             FuncsDataType initFuncsData;
             float initcost;
@@ -48,21 +50,20 @@ namespace Meta
 
                 std::vector<int> sol;
                 std::vector<int> options;
-                std::array<cost_t, N>* min_costs_ptr;
 
                 bool operator>(const ctx& rhs) const {
                     int points = 0, rhs_points = 0;
 
                     for (int i = 0; i < options.size(); ++i) {
                         const int opt = options[i];
-                        //points += (avg_costs[opt] > ((rhs.cost + rhs.avs) - (cost + avs - avg_costs[opt]) - min_costs[opt]));
-                        points += (0 > ((rhs.cost + rhs.avs) - (cost + avs) - (*min_costs_ptr)[opt]));
+                        //points += (cmatsType::avg[opt] > ((rhs.cost + rhs.avs) - (cost + avs - cmatsType::avg[opt]) - cmatsType::min[opt]));
+                        points += (0 > ((rhs.cost + rhs.avs) - (cost + avs) - cmatsType::min[opt]));
                     }
 
                     for (int i = 0; i < rhs.options.size(); ++i) {
                         const int opt = rhs.options[i];
-                        //points += (avg_costs[opt] > ((rhs.cost + rhs.avs) - (cost + avs - avg_costs[opt]) - min_costs[opt]));
-                        rhs_points += (0 > ((cost + avs) - (rhs.cost + rhs.avs) - (*min_costs_ptr)[opt]));
+                        //points += (cmatsType::avg[opt] > ((rhs.cost + rhs.avs) - (cost + avs - cmatsType::avg[opt]) - cmatsType::min[opt]));
+                        rhs_points += (0 > ((cost + avs) - (rhs.cost + rhs.avs) - cmatsType::min[opt]));
                     }
 
                     return points > rhs_points;
@@ -106,7 +107,7 @@ namespace Meta
                 cost_t lb_cost = cost_in;
 
                 for (int i = 0; i < current_options.size(); ++i)
-                    lb_cost += min_costs[current_options[i]];
+                    lb_cost += cmats.min[current_options[i]];
 
                 return lb_cost;
             }
@@ -115,7 +116,7 @@ namespace Meta
                 cost_t avs_cost = 0.0f;
 
                 for (int i = 0; i < current_options.size(); ++i)
-                    avs_cost += avg_costs[current_options[i]];
+                    avs_cost += cmats.avg[current_options[i]];
 
                 return avs_cost;
             }
@@ -127,7 +128,7 @@ namespace Meta
 
                 for (int i = 0; i < prev_ctx.options.size(); ++i) {
                     const auto curr = prev_ctx.options[i];
-                    const auto cost = prev_cost + costm[prev][curr];
+                    const auto cost = prev_cost + cmats.cost[prev][curr];
 
                     if (cost < hb)
                     {
@@ -155,7 +156,6 @@ namespace Meta
                             ctx.cost = cost;
                             ctx.lb = lb;
                             ctx.avs = calc_avs(ctx.options);
-                            ctx.min_costs_ptr = &min_costs;
 
                             if (ctx.sol.size() == N) {
                                 std::cout << "Found cost: " << ctx.cost << "\n";
@@ -193,7 +193,6 @@ namespace Meta
                         ctx.cost = 0.0f;
                         ctx.lb = lb;
                         ctx.avs = calc_avs(ctx.options);
-                        ctx.min_costs_ptr = &min_costs;
 
                         pqueue.push(ctx);
                     }
@@ -250,7 +249,7 @@ namespace Meta
             cost_t Cost(auto& funcs) {
                 cost_t cost = 0.0f;
                 for (int i = 0; i < funcCount - 1; ++i)
-                    cost += costm[funcs[i].ID][funcs[i + 1].ID];
+                    cost += cmats.cost[funcs[i].ID][funcs[i + 1].ID];
 
                 return cost;
             }
@@ -286,36 +285,8 @@ namespace Meta
                     std::sort(vec.data, vec.data + vec.len);
                 }
 
-                // Compute cost mat
-                for (int i = 0; i < funcCount; ++i)
-                    costm[i][i] = FLT_MAX;
-                min_costs.fill(FLT_MAX);
-
-                for (int i = 0; i < N; ++i) {
-                    for (int j = i + 1; j < N; ++j) {
-                        const auto func_i = funcs_perm[i];
-                        const auto func_j = funcs_perm[j];
-
-                        const float cost = JaccardIndexOfSortedSets(fdata.f_params(funcs[func_i]),
-                                                                    fdata.f_params(funcs[func_j]));
-                        costm[i][j] = cost;
-                        costm[j][i] = cost;
-
-                        if (cost < min_costs[i])
-                            min_costs[i] = cost;
-                        if (cost < min_costs[j])
-                            min_costs[j] = cost;
-                    }
-                }
-
-                for (int i = 0; i < N; ++i) {
-                    cost_t sum = 0;
-                    for (int j = 0; j < N; ++j) {
-                        if (i != j)
-                            sum += costm[i][j];
-                    }
-                    avg_costs[i] = sum / (N - 1);
-                }
+                // Init static Jaccard cost mats
+                cmats.Init(fdata, funcs_perm);
 
                 // Compute initial cost for difference
                 initcost = Cost(funcs);

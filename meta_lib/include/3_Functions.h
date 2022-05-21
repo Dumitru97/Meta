@@ -34,9 +34,10 @@ namespace Meta
 	};
 
 	using param_idx_t = int;
-	template<size_t funcCount, size_t paramIdxsStorageSize_, typename AdditionalFunctionInfo>
+	template<size_t funcCount, size_t paramIdxsStorageSize_, typename AdditionalFunctionInfoIn>
 	struct FuncsDataReal {
-		using functionType = function<AdditionalFunctionInfo>;
+		using functionType = function<AdditionalFunctionInfoIn>;
+		using AdditionalFunctionInfo = AdditionalFunctionInfoIn;
 
 		std::array<int, paramIdxsStorageSize_> paramIdxsStorage; //el11 ... el21 ...  ....
 		std::array<functionType, funcCount> funcs{};

@@ -23,6 +23,7 @@ namespace Meta
 			float pow_mult;
 		};
 
+		// Function cmp operator<
 		template<typename AdditionalFunctionInfo>
 		bool operator<(const function<AdditionalFunctionInfo>& lhs,
 					   const function<AdditionalFunctionInfo>& rhs)
@@ -33,6 +34,7 @@ namespace Meta
 			return FuncsCmpSwapMatsType::cmp[lhs.ID][rhs.ID];
 		}
 
+		// Function isSwapable operator<=>
 		template<typename AdditionalFunctionInfo>
 		bool operator<=>(const function<AdditionalFunctionInfo>& lhs,
 						 const function<AdditionalFunctionInfo>& rhs)
@@ -129,8 +131,8 @@ namespace Meta
 			cost_t Cost(const UnusedType) {
 				cost_t cost = 0.0f;
 				for (int i = 0; i < funcCount - 1; ++i) {
-					const auto& currFunc = fdata.f_params(funcs[i]);
-					const auto& nextFunc = fdata.f_params(funcs[i + 1]);
+					auto currFunc = fdata.f_params(funcs[i]);
+					auto nextFunc = fdata.f_params(funcs[i + 1]);
 					cost += JaccardIndexOfSortedSets(currFunc, nextFunc);
 				}
 
