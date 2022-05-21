@@ -11,8 +11,15 @@ namespace Meta
 	
     namespace BBFunctionOrder {
 
+        struct BBParams {
+            size_t pqueueThresh;
+            float cullRatio;
+        };
+
         template<typename OrdersDataRealTypeIn, typename FuncsDataRealTypeIn, typename OrdersCmpSwapMatsTypeIn, typename FuncsCmpSwapMatsTypeIn>
         struct BBStruct {
+
+            BBParams bb_params = { .pqueueThresh = std::max(funcCount * funcCount, 5000), .cullRatio = 0.55f };
 
             struct bound {
                 float value;
@@ -82,11 +89,11 @@ namespace Meta
                     if (cost < hb.value)
                     {
                         ctx ctx;
-                        const std::span next_options{ fmats.cmp_only[i].data(), (size_t)fmats.cmp_only[i].count() };
+                        const std::span next_options{ fmats.cmp_only[curr].data(), (size_t)fmats.cmp_only[curr].count() };
                         ctx.options.resize(next_options.size());
                         const auto end = std::set_intersection(next_options.begin(), next_options.end(),
-                            prev_ctx.options.begin(), prev_ctx.options.end(),
-                            ctx.options.begin());
+                                                               prev_ctx.options.begin(), prev_ctx.options.end(),
+                                                               ctx.options.begin());
                         const auto ctxOptionsSize = end - ctx.options.begin();
 
                         if (prev_ctx.sol.size() + 1 + ctxOptionsSize != N)
@@ -107,6 +114,7 @@ namespace Meta
                             if (ctx.sol.size() == N) {
                                 if (ctx.lb.cost < hb.value) {
                                     hb = bound{ ctx.lb.cost, ctx.lb.cost, N };
+                                    std::cout << "Found cost: " << ctx.lb.cost << "\n";
                                     std::copy(ctx.sol.begin(), ctx.sol.end(), best_sol.begin());
                                     cleanpq = true;
                                 }
@@ -120,8 +128,6 @@ namespace Meta
             }
 
             auto& BranchAndBound() {
-                hb = bound{ FLT_MAX, FLT_MAX, N };// 1.79;
-
                 // Add first level nodes
                 for (int i = 0; i < N; ++i) {
                     const std::span options{ fmats.cmp_only[i].data(), (size_t)fmats.cmp_only[i].count() };
@@ -153,8 +159,8 @@ namespace Meta
                         cleanpq = false;
                     }
 
-                    if (pqueue.size() > N * std::sqrtf(N))
-                        pqueue.cull(0.55f);
+                    if (pqueue.size() > bb_params.pqueueThresh)
+                        pqueue.cull(bb_params.cullRatio);
 
                     if (pqueue.empty())
                         break;
@@ -169,6 +175,24 @@ namespace Meta
                     else
                         pqueue.pop();
                 }
+
+                for (int ordPos = 0; ordPos < N; ++ordPos) {
+                    int ordFunc = -1;
+                    for (int j = ordPos; j < N; ++j)
+                        if (funcs[j].ID == best_sol[ordPos])
+                            ordFunc = j;
+                    std::swap(funcs[ordPos], funcs[ordFunc]);
+                }
+
+                auto cost = Cost(funcs);
+                auto costdiff = initcost - cost;
+                std::cout << std::format("BranchAndBound - Valid input cost: {}, Output cost: {}, Diff: {}\n", initcost, cost, costdiff);
+
+                if (costdiff < -1E-3f) {
+                    std::cout << "Cost increase. Using returning input instead of output order.\n\n";
+                    return initFuncsData;
+                }
+                std::cout << '\n';
 
                 return fdata;
             }
@@ -200,11 +224,8 @@ namespace Meta
 
             cost_t Cost(auto& funcs) {
                 cost_t cost = 0.0f;
-                for (int i = 0; i < funcCount - 1; ++i) {
-                    const auto& currFunc = fdata.f_params(funcs[i]);
-                    const auto& nextFunc = fdata.f_params(funcs[i + 1]);
-                    cost += JaccardIndexOfSortedSets(currFunc, nextFunc);
-                }
+                for (int i = 0; i < funcCount - 1; ++i)
+                    cost += costm[funcs[i].ID][funcs[i + 1].ID];
 
                 return cost;
             }
@@ -214,15 +235,10 @@ namespace Meta
                 fmats = std::get<3>(ord_funcs_data_and_mat_tuple_and_params);
                 auto optionalParams = std::get<4>(ord_funcs_data_and_mat_tuple_and_params);
 
+                std::cout << "Running BranchAndBound.\n";
                 initFuncsData = fdata;
                 if (optionalParams)
-                    sa_params = optionalParams.value();
-
-                // Sort parameters for Jaccard index calculation
-                for (int i = 0; i < funcCount; ++i) {
-                    span<int> vec = fdata.f_params(i);
-                    std::sort(vec.data, vec.data + vec.len);
-                }
+                    bb_params = optionalParams.value();
 
                 // Check if ordering is valid and initialize funcs_perm
                 std::array<int, funcCount> funcs_perm{};
@@ -230,10 +246,20 @@ namespace Meta
                 if (!isValidOrdering)
                     std::cout << "Reordering functions into a valid ordering" << "\n";
 
-                // Compute initial cost for difference
-                initcost = Cost(funcs);
-                hb = bound{ initcost, initcost, funcCount };
+                // Sanity check funcs_perm
+                for (int i = 0; i < funcCount; ++i) {
+                    int pos = funcs_perm[i];
+                    if (funcs[pos].ID != i)
+                        throw;
+                }
 
+                // Sort parameters for Jaccard index calculation
+                for (int i = 0; i < funcCount; ++i) {
+                    span<int> vec = fdata.f_params(i);
+                    std::sort(vec.data, vec.data + vec.len);
+                }
+
+                // Compute cost mat
                 for (int i = 0; i < funcCount; ++i)
                     costm[i][i] = FLT_MAX;
                 min_costs.fill(FLT_MAX);
@@ -251,12 +277,9 @@ namespace Meta
                     }
                 }
 
-                // Sanity check funcs_perm
-                for (int i = 0; i < funcCount; ++i) {
-                    int pos = funcs_perm[i];
-                    if (funcs[pos].ID != i)
-                        throw;
-                }
+                // Compute initial cost for difference
+                initcost = Cost(funcs);
+                hb = bound{ initcost, initcost, funcCount };
             }
 
         };

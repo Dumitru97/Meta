@@ -94,19 +94,10 @@ namespace Meta
 				if (optionalParams)
 					sa_params = optionalParams.value();
 
-				// Sort parameters for Jaccard index calculation
-				for (int i = 0; i < funcCount; ++i) {
-					span<int> vec = fdata.f_params(i);
-					std::sort(vec.data, vec.data + vec.len);
-				}
-
 				// Check if ordering is valid and initialize funcs_perm
 				auto isValidOrdering = ProduceInitialValidOrdering(funcs, funcs_perm, fmats, funcCount);
 				if(!isValidOrdering)
 					std::cout << "Reordering functions into a valid ordering" << "\n";
-
-				// Compute initial cost for difference
-				initcost = Cost(UnusedType{});
 
 				// Sanity check funcs_perm
 				for (int i = 0; i < funcCount; ++i) {
@@ -114,6 +105,15 @@ namespace Meta
 					if (funcs[pos].ID != i)
 						throw;
 				}
+
+				// Sort parameters for Jaccard index calculation
+				for (int i = 0; i < funcCount; ++i) {
+					span<int> vec = fdata.f_params(i);
+					std::sort(vec.data, vec.data + vec.len);
+				}
+
+				// Compute initial cost for difference
+				initcost = Cost(UnusedType{});
 
 				return {};
 			}
@@ -307,9 +307,10 @@ namespace Meta
 				std::cout << std::format("SimulatedAnnealing - Valid input cost: {}, Output cost: {}, Diff: {}\n", initcost, cost, costdiff);
 
 				if (costdiff < -1E-3f) {
-					std::cout << "Cost increase. Using returning input instead of output order." << "\n";
+					std::cout << "Cost increase. Using returning input instead of output order.\n\n";
 					return initFuncsData;
 				}
+				std::cout << '\n';
 
 				return fdata;
 			}
