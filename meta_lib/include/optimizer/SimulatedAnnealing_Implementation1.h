@@ -28,9 +28,9 @@ namespace Meta
 		bool operator<(const function<AdditionalFunctionInfo>& lhs,
 					   const function<AdditionalFunctionInfo>& rhs)
 		{
-			using orderNamespaceHelper = typename AdditionalFunctionInfo::orderNamespaceHelper;
-			using funcNamespaceHelper = typename AdditionalFunctionInfo::funcNamespaceHelper;
-			using FuncsCmpSwapMatsType = FuncsCmpSwapMats<AdditionalFunctionInfo::funcCount, orderNamespaceHelper, funcNamespaceHelper>;
+			using OrderNamespaceHelper = typename AdditionalFunctionInfo::OrderNamespaceHelper;
+			using FuncNamespaceHelper = typename AdditionalFunctionInfo::FuncNamespaceHelper;
+			using FuncsCmpSwapMatsType = FuncsCmpSwapMats<AdditionalFunctionInfo::funcCount, OrderNamespaceHelper, FuncNamespaceHelper>;
 			return FuncsCmpSwapMatsType::cmp[lhs.ID][rhs.ID];
 		}
 
@@ -39,9 +39,9 @@ namespace Meta
 		bool operator<=>(const function<AdditionalFunctionInfo>& lhs,
 						 const function<AdditionalFunctionInfo>& rhs)
 		{
-			using orderNamespaceHelper = typename AdditionalFunctionInfo::orderNamespaceHelper;
-			using funcNamespaceHelper = typename AdditionalFunctionInfo::funcNamespaceHelper;
-			using FuncsCmpSwapMatsType = FuncsCmpSwapMats<AdditionalFunctionInfo::funcCount, orderNamespaceHelper, funcNamespaceHelper>;
+			using OrderNamespaceHelper = typename AdditionalFunctionInfo::OrderNamespaceHelper;
+			using FuncNamespaceHelper = typename AdditionalFunctionInfo::FuncNamespaceHelper;
+			using FuncsCmpSwapMatsType = FuncsCmpSwapMats<AdditionalFunctionInfo::funcCount, OrderNamespaceHelper, FuncNamespaceHelper>;
 			return FuncsCmpSwapMatsType::swap[lhs.ID][rhs.ID];
 		}
 

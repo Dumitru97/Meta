@@ -23,8 +23,8 @@ namespace Meta
 
             using FuncsDataType = std::remove_cvref_t<FuncsDataRealTypeIn>;
             using FuncsCmpSwapMatsType = std::remove_cvref_t<FuncsCmpSwapMatsTypeIn>;
-            using orderNamespaceHelper = typename FuncsDataType::AdditionalFunctionInfo::orderNamespaceHelper;
-            using funcNamespaceHelper = typename FuncsDataType::AdditionalFunctionInfo::funcNamespaceHelper;
+            using OrderNamespaceHelper = typename FuncsDataType::AdditionalFunctionInfo::OrderNamespaceHelper;
+            using FuncNamespaceHelper = typename FuncsDataType::AdditionalFunctionInfo::FuncNamespaceHelper;
             using OnlyMat = typename FuncsCmpSwapMatsType::OnlyMat;
 
             FuncsDataType fdata;
@@ -34,7 +34,7 @@ namespace Meta
             static constexpr int funcCount = FuncsDataType::count;
             static constexpr int N = funcCount;
 
-            FuncsJaccardCostMats<funcCount, orderNamespaceHelper, funcNamespaceHelper> cmats;
+            FuncsJaccardCostMats<funcCount, OrderNamespaceHelper, FuncNamespaceHelper> cmats;
             using cmatsType = decltype(cmats);
             using cost_t = typename decltype(cmats)::cost_t;
 
@@ -62,7 +62,7 @@ namespace Meta
 
                     for (int i = 0; i < rhs.options.size(); ++i) {
                         const int opt = rhs.options[i];
-                        //points += (cmatsType::avg[opt] > ((rhs.cost + rhs.avs) - (cost + avs - cmatsType::avg[opt]) - cmatsType::min[opt]));
+                        //rhs_points += (cmatsType::avg[opt] > ((rhs.cost + rhs.avs) - (cost + avs - cmatsType::avg[opt]) - cmatsType::min[opt]));
                         rhs_points += (0 > ((cost + avs) - (rhs.cost + rhs.avs) - cmatsType::min[opt]));
                     }
 
@@ -87,7 +87,7 @@ namespace Meta
 
                     remove_if([&nth](ctx& ctx) {
                         return ctx > nth;
-                        });
+                    });
                 }
             };
 

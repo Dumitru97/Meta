@@ -181,8 +181,8 @@ namespace Meta {												\
 namespace Meta {																							\
 	struct AdditionalFunctionInfo_##ON##_##FN {																\
 			static constexpr int funcCount = size(Meta::meta::members_of(^ FN, Meta::meta::is_function));	\
-			using orderNamespaceHelper = META_NAMESPACE_HELPER_TYPE(ON, ON, FN);							\
-			using funcNamespaceHelper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN);								\
+			using OrderNamespaceHelper = META_NAMESPACE_HELPER_TYPE(ON, ON, FN);							\
+			using FuncNamespaceHelper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN);								\
 	};																										\
 }																											\
 // END #define META_DEFINE_ADDITIONAL_FUNCTION_INFO(ON, FN) 
