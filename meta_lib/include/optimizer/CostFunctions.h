@@ -39,7 +39,7 @@ namespace Meta
 		using cost_t = float;
 
 		static inline std::array<std::array<cost_t, funcCount>, funcCount> cost;
-		static inline std::array<cost_t, funcCount> min;
+		static inline std::array<cost_t, funcCount> min; // Other than self cost
 		static inline std::array<cost_t, funcCount> avg;
 		static inline bool isComputed = false;
 
@@ -60,10 +60,12 @@ namespace Meta
 					cost[i][j] = costval;
 					cost[j][i] = costval;
 
-					if (costval < min[i])
-						min[i] = costval;
-					if (costval < min[j])
-						min[j] = costval;
+					if (i != j) {
+						if (costval < min[i])
+							min[i] = costval;
+						if (costval < min[j])
+							min[j] = costval;
+					}
 				}
 			}
 

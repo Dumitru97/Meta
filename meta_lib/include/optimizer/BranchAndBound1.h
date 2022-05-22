@@ -54,16 +54,21 @@ namespace Meta
                 bool operator>(const ctx& rhs) const {
                     int points = 0, rhs_points = 0;
 
+                    const float constant = (rhs.cost - cost) + (rhs.avs - avs);
+                    const float rhs_constant = -constant; //(cost - rhs.cost) + (avs - rhs.avs)
+
+                    // Logic
+                    //points += (cmatsType::avg[opt] > ((rhs.cost + rhs.avs) - (cost + (avs - cmatsType::avg[opt])) - cmatsType::min[opt]));
+                    //rhs_points += (cmatsType::avg[opt] > ((rhs.cost + rhs.avs) - (cost + (avs - cmatsType::avg[opt])) - cmatsType::min[opt]));
+
                     for (int i = 0; i < options.size(); ++i) {
                         const int opt = options[i];
-                        //points += (cmatsType::avg[opt] > ((rhs.cost + rhs.avs) - (cost + avs - cmatsType::avg[opt]) - cmatsType::min[opt]));
-                        points += (0 > ((rhs.cost + rhs.avs) - (cost + avs) - cmatsType::min[opt]));
+                        points += (0 > constant - cmatsType::min[opt]);
                     }
 
                     for (int i = 0; i < rhs.options.size(); ++i) {
                         const int opt = rhs.options[i];
-                        //rhs_points += (cmatsType::avg[opt] > ((rhs.cost + rhs.avs) - (cost + avs - cmatsType::avg[opt]) - cmatsType::min[opt]));
-                        rhs_points += (0 > ((cost + avs) - (rhs.cost + rhs.avs) - cmatsType::min[opt]));
+                        rhs_points += (0 > rhs_constant - cmatsType::min[opt]);
                     }
 
                     return points > rhs_points;
