@@ -21,13 +21,11 @@ namespace Meta
 			std::make_index_sequence<std::tuple_size_v<std::remove_reference_t<Tuple2>>>{});
 	}
 
-	template<auto paramRange, auto orderRange>
+	template<auto paramRangeMeta, auto orderRangeMeta>
 	consteval void PackParamsAndCall(auto funcMeta) {
-		std::tuple paramTuple = std::make_tuple(...[:[:paramRange:]:]...);
-		std::tuple orderTuple = std::make_tuple(...[:[:orderRange:]:]...);
+		std::tuple paramTuple = std::make_tuple(...[:[:paramRangeMeta:]:]...);
+		std::tuple orderTuple = std::make_tuple(...[:[:orderRangeMeta:]:]...);
 
-
-		//yo
 		->fragment {
 			constexpr std::tuple paramTupleUnquoted = %{paramTuple};
 			constexpr std::tuple orderTupleUnquoted = %{orderTuple};
@@ -55,7 +53,7 @@ namespace Meta
 		int i = 0;
 		template for (constexpr auto order : [:orderRangeMeta:] ) {
 			(void)order;
-			meta_arr[i++] = ^ (typename[: meta::type_of(order) : ]{});
+			meta_arr[i++] = ^(typename[:meta::type_of(order):]{});
 		}
 		return meta_arr;
 	}
