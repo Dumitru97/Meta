@@ -82,7 +82,7 @@ inline int MetaOptimToFile_##ON##_##FN##_##OP##_##PAR = META_OPTIM_TO_FILE_FUNC(
 namespace Meta																											\
 {																														\
 template<typename paramsType>																							\
-inline int MetaOptimToFileHeaderFunc_##ON##_##FN##_##OP (bool write, auto inputPreprocessFunctor,						\
+inline int MetaOptimToFileHeaderFunc_##ON##_##FN##_##OP (bool write, const auto& inputPreprocessFunctor,				\
 														std::optional<paramsType> paramsIn,								\
 													    const char* header_filename, const char* idx_arr_name)			\
 {																														\

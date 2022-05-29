@@ -7,9 +7,12 @@
 #include <vector>
 #include <algorithm>
 #include <optional>
+#include <chrono>
 
 namespace Meta
 {
+	namespace chrono = std::chrono;
+
 	template<typename OrdersDataRealType, typename FuncsDataRealType, typename OrdersCmpSwapMatsType, typename FuncsCmpSwapMatsType>
 	auto SAFunctionOrderOP(const auto& input);
 
@@ -309,10 +312,9 @@ namespace Meta
 				std::cout << std::format("SimulatedAnnealing - Valid input cost: {}, Output cost: {}, Diff: {}\n", initcost, cost, costdiff);
 
 				if (costdiff < -1E-3f) {
-					std::cout << "Cost increase. Using returning input instead of output order.\n\n";
+					std::cout << "Cost increase. Using returning input instead of output order.\n";
 					return initFuncsData;
 				}
-				std::cout << '\n';
 
 				return fdata;
 			}
@@ -346,10 +348,17 @@ namespace Meta
 
 	template<typename OrdersDataRealType, typename FuncsDataRealType, typename OrdersCmpSwapMatsType, typename FuncsCmpSwapMatsType>
 	auto SAFunctionOrderOP(const auto& input) {
+		auto t1 = chrono::high_resolution_clock::now();
+
 		auto newFuncsDataReal = Meta::SimulatedAnnealing<
 			SAFunctionOrder::SASettings<OrdersDataRealType, FuncsDataRealType,
 			OrdersCmpSwapMatsType, FuncsCmpSwapMatsType>
 		>(input);
+
+		auto t2 = chrono::high_resolution_clock::now();
+		auto dur = chrono::duration_cast<chrono::nanoseconds>(t2 - t1);
+		std::cout << "Time(s): " << (double)dur.count() / 1e9 << "\n\n";
+
 		return newFuncsDataReal;
 	}
 

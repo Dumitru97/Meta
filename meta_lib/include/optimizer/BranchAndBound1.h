@@ -3,9 +3,13 @@
 #include <vector>
 #include <span>
 #include <queue>
+#include <chrono>
+
 
 namespace Meta
 {
+    namespace chrono = std::chrono;
+
 	template<typename OrdersDataRealType, typename FuncsDataRealType, typename OrdersCmpSwapMatsType, typename FuncsCmpSwapMatsType>
 	auto BBFunctionOrderOP(const auto& input);
 	
@@ -232,7 +236,7 @@ namespace Meta
                         pqueue.pop();
                 }
                 if (!found_sol) {
-                    std::cout << "Did not find solution. Using returning input instead of output order.\n\n";
+                    std::cout << "Did not find solution. Using returning input instead of output order.\n";
                     return initFuncsData;
                 }
 
@@ -266,7 +270,6 @@ namespace Meta
                     std::cout << "Cost increase. Using returning input instead of output order.\n\n";
                     return initFuncsData;
                 }
-                std::cout << '\n';
 
                 return fdata;
             }
@@ -323,9 +326,16 @@ namespace Meta
 
 	template<typename OrdersDataRealType, typename FuncsDataRealType, typename OrdersCmpSwapMatsType, typename FuncsCmpSwapMatsType>
 	auto BBFunctionOrderOP(const auto& input) {
-        BBFunctionOrder::BBStruct<OrdersDataRealType, FuncsDataRealType, OrdersCmpSwapMatsType, FuncsCmpSwapMatsType> bb;
+        auto t1 = chrono::high_resolution_clock::now();
 
-               bb.Init(input);
-        return bb.BranchAndBound();
+        BBFunctionOrder::BBStruct<OrdersDataRealType, FuncsDataRealType, OrdersCmpSwapMatsType, FuncsCmpSwapMatsType> bb;
+        bb.Init(input);
+        auto result = bb.BranchAndBound();
+
+        auto t2 = chrono::high_resolution_clock::now();
+        auto dur = chrono::duration_cast<chrono::nanoseconds>(t2 - t1);
+        std::cout << "Time(s): " << (double)dur.count() / 1e9 << "\n\n";
+
+        return result;
 	}
 } // namespace Meta
