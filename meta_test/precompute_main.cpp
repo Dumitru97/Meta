@@ -4,13 +4,13 @@
 //For default orders cost calculation
 #include "include/simulation/DefaultCallOrderFuncNames.h"
 
-template<typename FuncNameArrType>
+template<typename FuncNameArrType, typename ParamType>
 struct DefaultOrderInputPreprocess {
-	constexpr auto operator()(auto input) const {
+	auto operator()(auto input) const {
 		// Set SA params so that it isn't run but the cost is displayed
 		auto& funcsData = std::get<1>(input);
 		auto& optionalParams = std::get<4>(input);
-		optionalParams = { .reps = 0, .temp = 0, .reps_increment = 0, .temp_decrement = 0, .pow_mult = 0 };
+		optionalParams = custom_params;
 
 		using FN_Helper = META_NAMESPACE_HELPER_TYPE(FN, ON, FN);
 		const auto& funcNameIDs = Meta::FuncNameIDsHelper<FN_Helper>::nameIDs;
@@ -45,19 +45,33 @@ struct DefaultOrderInputPreprocess {
 	}
 
 	const FuncNameArrType& defaultOrderFuncNameArr;
+	ParamType custom_params;
 };
 
-template<typename T>
-DefaultOrderInputPreprocess(const T& cont)->DefaultOrderInputPreprocess<std::remove_cvref_t<T>>;
+template<typename FuncNameArrType, typename ParamType>
+DefaultOrderInputPreprocess(const FuncNameArrType& cont, ParamType custom_params)
+	->DefaultOrderInputPreprocess<std::remove_cvref_t<FuncNameArrType>, ParamType>;
 
 int main() {
+	constexpr Meta::SAFunctionOrder::SAParams empty_sa_params = {.reps = 0, .temp = 0, .reps_increment = 0, .temp_decrement = 0, .pow_mult = 0 };
+
 	//Default order1 cost
 	std::cout << "DefaultOrder1" << "\n";
-	constexpr auto defaultOrderInputPreprocess1 = DefaultOrderInputPreprocess{ defaultOrder1 };
-	META_OPTIM_TO_FILE_FUNC(ON, FN, SAFunctionOrderOP)<defaultOrderInputPreprocess1>(false, std::optional{ sa_params }, nullptr, nullptr);
+	auto defaultSAOrderInputPreprocess1 = DefaultOrderInputPreprocess{ defaultOrder1, empty_sa_params };
+	META_OPTIM_TO_FILE_FUNC(ON, FN, SAFunctionOrderOP)(false, defaultSAOrderInputPreprocess1, std::optional{ sa_params }, nullptr, nullptr);
 
 	//Default order2 cost
 	std::cout << "DefaultOrder2" << "\n";
-	constexpr auto defaultOrderInputPreprocess2 = DefaultOrderInputPreprocess{ defaultOrder2 };
-	META_OPTIM_TO_FILE_FUNC(ON, FN, SAFunctionOrderOP)<defaultOrderInputPreprocess2>(false, std::optional{ sa_params }, nullptr, nullptr);
+	auto defaultSAOrderInputPreprocess2 = DefaultOrderInputPreprocess{ defaultOrder2, empty_sa_params };
+	META_OPTIM_TO_FILE_FUNC(ON, FN, SAFunctionOrderOP)(false, defaultSAOrderInputPreprocess2, std::optional{ sa_params }, nullptr, nullptr);
+
+	//SA from default order2
+	std::cout << "SA from DefaultOrder2" << "\n";
+	auto defaultSAOrderInputPreprocess3 = DefaultOrderInputPreprocess{ defaultOrder2, sa_params };
+	META_OPTIM_TO_FILE_FUNC(ON, FN, SAFunctionOrderOP)(false, defaultSAOrderInputPreprocess3, std::optional{ sa_params }, nullptr, nullptr);
+
+	//BB from default order2
+	std::cout << "BB from DefaultOrder2" << "\n";
+	auto defaultBBOrderInputPreprocess3 = DefaultOrderInputPreprocess{ defaultOrder2, bb_params };
+	META_OPTIM_TO_FILE_FUNC(ON, FN, BBFunctionOrderOP)(false, defaultBBOrderInputPreprocess3, std::optional{ bb_params }, nullptr, nullptr);
 }

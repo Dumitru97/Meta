@@ -72,7 +72,7 @@ META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP)
 namespace Meta																														\
 {																																	\
 inline int MetaOptimCleanFile_##ON##_##FN##_##OP##_##PAR = DeleteIdxHeaderFile(META_PRECOMPUTE_HEADER_FILENAME(ON, FN, OP, PAR));	\
-inline int MetaOptimToFile_##ON##_##FN##_##OP##_##PAR = META_OPTIM_TO_FILE_FUNC(ON, FN, OP)<identity{}>(true, std::optional{ PAR },	\
+inline int MetaOptimToFile_##ON##_##FN##_##OP##_##PAR = META_OPTIM_TO_FILE_FUNC(ON, FN, OP)(true, identity{}, std::optional{ PAR },	\
 														META_PRECOMPUTE_HEADER_FILENAME(ON, FN, OP, PAR),							\
 														META_STRINGIFY(META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN, OP, PAR)));	\
 }
@@ -81,8 +81,9 @@ inline int MetaOptimToFile_##ON##_##FN##_##OP##_##PAR = META_OPTIM_TO_FILE_FUNC(
 #define META_DEFINE_OPTIM_TO_FILE_FUNC(ON, FN, OP)																		\
 namespace Meta																											\
 {																														\
-template<auto SAInputPreprocessFunctor, typename paramsType>															\
-inline int MetaOptimToFileHeaderFunc_##ON##_##FN##_##OP (bool write, std::optional<paramsType> paramsIn,				\
+template<typename paramsType>																							\
+inline int MetaOptimToFileHeaderFunc_##ON##_##FN##_##OP (bool write, auto inputPreprocessFunctor,						\
+														std::optional<paramsType> paramsIn,								\
 													    const char* header_filename, const char* idx_arr_name)			\
 {																														\
 	consteval {																											\
@@ -108,7 +109,7 @@ inline int MetaOptimToFileHeaderFunc_##ON##_##FN##_##OP (bool write, std::option
 			auto params = [:%{^paramsIn}:];																				\
 																														\
 			std::tuple pre_input{ ordersDataReal, funcsDataReal, ordersCmpSwapMats, funcsCmpSwapMats, params };			\
-			std::tuple input = SAInputPreprocessFunctor.operator()(pre_input);											\
+			std::tuple input = [:%{^inputPreprocessFunctor}:].operator()(pre_input);									\
 																														\
 			auto newFuncsDataReal = Meta::OP<OrdersDataRealType, FuncsDataRealType,										\
 											 decltype(ordersCmpSwapMats), decltype(funcsCmpSwapMats)>(input);			\

@@ -11,29 +11,18 @@ namespace Meta
 	struct function {
 		using AdditionalInfo = AdditionalInfoIn;
 
-		int storageIdx; // paramIdxsStorage idx
+		int storageIdx; // paramIdxsStorage index
 		int paramEnd = -1;
 		int orderEnd = -1;
 		int ID = -1;
 
-		constexpr int param_count() const {
-			return paramEnd;
-		}
-		constexpr int order_count() const {
-			return orderEnd - paramEnd;
-		}
-		constexpr int orders_end() const {
-			return orderEnd;
-		}
-		constexpr int orders_start() const {
-			return paramEnd;
-		}
-		constexpr int total_count() const {
-			return orderEnd;
-		}
+		constexpr int param_count()  const { return paramEnd; }
+		constexpr int order_count()  const { return orderEnd - paramEnd; }
+		constexpr int orders_end()   const { return orderEnd; }
+		constexpr int orders_start() const { return paramEnd; }
+		constexpr int total_count()  const { return orderEnd; }
 	};
 
-	using param_idx_t = int;
 	template<size_t funcCount, size_t paramIdxsStorageSize_, typename AdditionalFunctionInfoIn>
 	struct FuncsDataReal {
 		using functionType = function<AdditionalFunctionInfoIn>;
@@ -181,7 +170,7 @@ namespace Meta
 		int storeIdxOffset = 0;
 		int funcIdx = 0;
 		for (meta::info funcMeta : funcMetaRange) {
-			auto paramRange = meta::param_range(funcMeta);
+			auto paramRange = meta::parameters_of(funcMeta);
 			const auto funcParamRangeCount = size(paramRange);
 
 			funcsDataImag.metas[funcIdx] = funcMeta;
@@ -240,8 +229,7 @@ namespace Meta
 
 	template<size_t funcCount, typename orderNamespaceHelperIn, typename funcNamespaceHelperIn>
 	struct FuncsCmpSwapMats {
-		// Holds for every function that can be X with, all the functions that it can be X with
-
+		// OnlyMat holds for every function that can be X with, all the functions that it can be X with
 		struct OnlyMat {
 			static constexpr size_t ID_idx = 0;
 			static constexpr size_t count_idx = 1;
@@ -316,21 +304,20 @@ namespace Meta
 			for (int j = 0; j < fords2.len; ++j)
 				if (!ordersCmpSwapMats.cmp[fords1[i]][fords2[j]]) {
 					smaller1 = false;
-					j = fords2.len;
-					i = fords1.len;
+					j = fords2.len; i = fords1.len;
 				}
+
 
 		bool smaller2 = true;
 		for (int i = 0; i < fords2.len; ++i)
 			for (int j = 0; j < fords1.len; ++j)
 				if (!ordersCmpSwapMats.cmp[fords2[i]][fords1[j]]) {
 					smaller2 = false;
-					j = fords1.len;
-					i = fords2.len;
+					j = fords1.len; i = fords2.len;
 				}
 
-		// Unlike orders, both functions can be wrongfully !smaller than eachother
-		// so neither can be called before the other
+		// Both functions can be wrongfully !smaller than each other
+		// so that neither can be called before the other
 		if (!smaller1 && !smaller2)
 			throw;
 
@@ -356,19 +343,19 @@ namespace Meta
 			}
 
 		// Compute cmp_only and swap_only matrices
-		auto compute_only_matrix = [](auto& mat, auto& only_may) {
-			using OnlyMatType = std::remove_cvref_t<decltype(only_may)>;
+		auto compute_only_matrix = [](auto& mat, auto& only_mat) {
+			using OnlyMatType = std::remove_cvref_t<decltype(only_mat)>;
 
 			int row_pos = 0;
 			for (int i = 0; i < funcCount; ++i) {
 				int col_pos = OnlyMatType::values_idx;
 				for (int j = 0; j < i; ++j) {
 					if (mat[i][j])
-						only_may[row_pos][col_pos++] = j;
+						only_mat[row_pos][col_pos++] = j;
 				}
 				for (int j = i + 1; j < funcCount; ++j) {
 					if (mat[i][j])
-						only_may[row_pos][col_pos++] = j;
+						only_mat[row_pos][col_pos++] = j;
 				}
 
 				const int row_size = col_pos - OnlyMatType::values_idx;
@@ -377,11 +364,11 @@ namespace Meta
 				if (row_size == 0)
 					continue;
 
-				only_may[row_pos][OnlyMatType::ID_idx] = i; // Func ID
-				only_may[row_pos][OnlyMatType::count_idx] = row_size;
+				only_mat[row_pos][OnlyMatType::ID_idx] = i; // Func ID
+				only_mat[row_pos][OnlyMatType::count_idx] = row_size;
 				++row_pos;
 			}
-			only_may.count = row_pos;
+			only_mat.count = row_pos;
 		};
 
 		compute_only_matrix(funcsCmpSwapMats.cmp, funcsCmpSwapMats.cmp_only);
@@ -391,7 +378,7 @@ namespace Meta
 		return funcsCmpSwapMats;
 	}
 
-	bool FindValidOrdering(const int minIdx, auto& funcs, auto& funcs_perm, auto& fmats, auto funcCount) {
+	inline bool FindValidOrdering(const int minIdx, auto& funcs, auto& funcs_perm, auto& fmats, auto funcCount) {
 		for (int i = minIdx; i < funcCount; ++i) {
 			bool isMin = true;
 
@@ -430,7 +417,7 @@ namespace Meta
 		return false;
 	}
 
-	bool ProduceInitialValidOrdering(auto& funcs, auto& funcs_perm, auto& fmats, auto funcCount)
+	inline bool ProduceInitialValidOrdering(auto& funcs, auto& funcs_perm, auto& fmats, auto funcCount)
 	{
 		// Check if ordering is valid and initialize funcs_perm
 		bool isValidOrdering = true;
@@ -439,21 +426,16 @@ namespace Meta
 				// Check if smaller than all
 				if (!fmats.cmp[funcs[i].ID][funcs[j].ID]) {
 					isValidOrdering = false;
+					i = funcCount; j = funcCount;
 					//std::cout << "Invalid ordering. Func " << funcs[i].ID << " bigger than " << funcs[j].ID << "\n";
-					break;
 				}
 			}
-
-			if (!isValidOrdering)
-				break;
-
 			funcs_perm[funcs[i].ID] = i;
 		}
 
 		if(!isValidOrdering)
 			if (!FindValidOrdering(0, funcs, funcs_perm, fmats, funcCount))
 				throw;
-
 		return isValidOrdering;
 	}
 

@@ -51,32 +51,33 @@ namespace Meta
                 std::vector<int> sol;
                 std::vector<int> options;
 
-                bool operator>(const ctx& rhs) const {
+                // Priority check
+                bool operator<(const ctx& rhs) const {
                     int points = 0, rhs_points = 0;
 
                     const float constant = (rhs.cost - cost) + (rhs.avs - avs);
                     const float rhs_constant = -constant; //(cost - rhs.cost) + (avs - rhs.avs)
 
                     // Logic
-                    //points += (cmatsType::avg[opt] > ((rhs.cost + rhs.avs) - (cost + (avs - cmatsType::avg[opt])) - cmatsType::min[opt]));
-                    //rhs_points += (cmatsType::avg[opt] > ((rhs.cost + rhs.avs) - (cost + (avs - cmatsType::avg[opt])) - cmatsType::min[opt]));
+                    //points += (cmatsType::avg[opt] < ((rhs.cost + rhs.avs) - (cost + (avs - cmatsType::avg[opt])) - cmatsType::min[opt]));
+                    //rhs_points += (cmatsType::avg[opt] < ((rhs.cost + rhs.avs) - (cost + (avs - cmatsType::avg[opt])) - cmatsType::min[opt]));
 
                     for (int i = 0; i < options.size(); ++i) {
                         const int opt = options[i];
-                        points += (0 > constant - cmatsType::min[opt]);
+                        points += (0 < constant - cmatsType::min[opt]);
                     }
 
                     for (int i = 0; i < rhs.options.size(); ++i) {
                         const int opt = rhs.options[i];
-                        rhs_points += (0 > rhs_constant - cmatsType::min[opt]);
+                        rhs_points += (0 < rhs_constant - cmatsType::min[opt]);
                     }
 
-                    return points > rhs_points;
+                    return points < rhs_points;
                 };
             };
 
             template<typename T>
-            class ext_priority_queue : public std::priority_queue<T, std::vector<T>, std::greater<T>>
+            class ext_priority_queue : public std::priority_queue<T, std::vector<T>, std::less<T>>
             {
             public:
                 void remove_if(auto&& pred) {
@@ -87,11 +88,11 @@ namespace Meta
 
                 void cull(float ratio) {
                     const size_t nth_idx = this->c.size() * ratio;
-                    std::nth_element(this->c.begin(), this->c.begin() + nth_idx, this->c.end(), std::greater{});
+                    std::nth_element(this->c.begin(), this->c.begin() + nth_idx, this->c.end(), std::less{});
                     const auto nth = this->c[nth_idx];
 
                     remove_if([&nth](ctx& ctx) {
-                        return ctx > nth;
+                        return ctx < nth;
                     });
                 }
             };
@@ -99,7 +100,7 @@ namespace Meta
 
             // Primary member variables
             std::array<int, N> best_sol;
-            int sol_num;
+            bool found_sol = false;
             cost_t hb = FLT_MAX;
 
             ext_priority_queue<ctx> pqueue;
@@ -168,6 +169,7 @@ namespace Meta
                                 if (ctx.cost < hb) {
                                     hb = ctx.cost;
                                     std::copy(ctx.sol.begin(), ctx.sol.end(), best_sol.begin());
+                                    found_sol = true;
                                     cleanpq = true;
                                 }
                             }
@@ -229,6 +231,10 @@ namespace Meta
                     else
                         pqueue.pop();
                 }
+                if (!found_sol) {
+                    std::cout << "Did not find solution. Using returning input instead of output order.\n\n";
+                    return initFuncsData;
+                }
 
                 for (int ordPos = 0; ordPos < N; ++ordPos) {
                     int ordFunc = -1;
@@ -236,6 +242,20 @@ namespace Meta
                         if (funcs[j].ID == best_sol[ordPos])
                             ordFunc = j;
                     std::swap(funcs[ordPos], funcs[ordFunc]);
+                }
+
+                // Cmp sanity check
+                for (int i = 0; i < funcCount; ++i) {
+                    bool isMin = true;
+                    for (int j = i; j < funcCount; ++j) {
+                        // Check if smaller than all
+                        if (!fmats.cmp[funcs[i].ID][funcs[j].ID]) {
+                            isMin = false;
+                            break;
+                        }
+                    }
+                    if (!isMin)
+                        throw;
                 }
 
                 auto cost = Cost(funcs);

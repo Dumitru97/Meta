@@ -2,34 +2,29 @@
 
 namespace Meta
 {
-	template<typename SortedInputType1, typename SortedInputType2>
-	inline int set_intersection_cardinal(SortedInputType1* data1, SortedInputType1* end1,
-		SortedInputType2* data2, SortedInputType2* end2)
-	{
+	template<typename SortedType1, typename SortedType2>
+	inline int set_intersection_cardinal(SortedType1* data1, SortedType1* end1,
+										 SortedType2* data2, SortedType2* end2) {
 		int count = 0;
 		while (data1 != end1 && data2 != end2) {
-			if (*data1 < *data2) {
+			if (*data1 < *data2)
 				++data1;
-			}
-			else if (*data2 < *data1) {
+			else if (*data2 < *data1)
 				++data2;
-			}
 			else {
-				++data1;
-				++data2;
-				++count;
+				++data1; ++data2; ++count;
 			}
 		}
 		return count;
 	}
 
-	inline float JaccardIndexOfSortedSets(const auto& v1, const auto& v2) {
+	inline float JaccardDistanceOfSortedSets(const auto& v1, const auto& v2) {
 		const int intersection_card = set_intersection_cardinal(v1.begin(), v1.end(), v2.begin(), v2.end());
 		return 1.0f - (float)intersection_card / (v1.size() + v2.size() - intersection_card);
 	}
 
 	template<typename T>
-	inline float JaccardIndexOfSortedSets(span<T> v1, span<T> v2) {
+	inline float JaccardDistanceOfSortedSets(span<T> v1, span<T> v2) {
 		const int intersection_card = set_intersection_cardinal(v1.data, v1.data + v1.len, v2.data, v2.data + v2.len);
 		return 1.0f - (float)intersection_card / (v1.len + v2.len - intersection_card);
 	}
@@ -49,13 +44,12 @@ namespace Meta
 
 			// Compute cost mats
 			min.fill(FLT_MAX);
-
 			for (int i = 0; i < funcCount; ++i) {
 				for (int j = i; j < funcCount; ++j) {
 					const auto func_i = funcs_perm[i];
 					const auto func_j = funcs_perm[j];
 
-					const float costval = JaccardIndexOfSortedSets(fdata.f_params(fdata.funcs[func_i]),
+					const float costval = JaccardDistanceOfSortedSets(fdata.f_params(fdata.funcs[func_i]),
 																   fdata.f_params(fdata.funcs[func_j]));
 					cost[i][j] = costval;
 					cost[j][i] = costval;

@@ -133,7 +133,7 @@ namespace Meta
 				for (int i = 0; i < funcCount - 1; ++i) {
 					auto currFunc = fdata.f_params(funcs[i]);
 					auto nextFunc = fdata.f_params(funcs[i + 1]);
-					cost += JaccardIndexOfSortedSets(currFunc, nextFunc);
+					cost += JaccardDistanceOfSortedSets(currFunc, nextFunc);
 				}
 
 				return cost;
@@ -209,7 +209,7 @@ namespace Meta
 					//	throw;
 
 					// Since swapping two distant functions can break ordering for the functions between them we 
-					// do incremental checks(with cursor) up to maxIdx. If failing along the way we settle for a function in between
+					// do incremental checks(with cursor) up to maxIdx. If failing along the way we settle for a function inbetween
 					int minIdx = funcs_perm[origIdx1];
 					int maxIdx = funcs_perm[origIdx2];
 
@@ -227,7 +227,7 @@ namespace Meta
 					}
 					cursor--;
 
-					// Settled for initial maxIdx or a function in between
+					// Settled for initial maxIdx or a function inbetween
 					// Now checking if that maxIdx/cursor function can be swapped in the other direction to minIdx
 					maxIdx = cursor;
 					validSwap = false;
@@ -335,7 +335,7 @@ namespace Meta
 				for (int i = fstart; i < fstart + fcount - 1; ++i) {
 					const auto& currFunc = fdata.f_params(funcs[i]);
 					const auto& nextFunc = fdata.f_params(funcs[i + 1]);
-					cost += JaccardIndexOfSortedSets(currFunc, nextFunc);
+					cost += JaccardDistanceOfSortedSets(currFunc, nextFunc);
 				}
 
 				return cost;

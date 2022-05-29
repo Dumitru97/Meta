@@ -17,11 +17,9 @@ namespace Meta
 		static constexpr bool id_cmp(const ParamNameID& lhs, const ParamNameID& rhs) {
 			return lhs.ID < rhs.ID;
 		}
-		
 		static constexpr bool id_untruc_cmp(const ParamNameID& lhs, const ParamNameID& rhs) {
 			return lhs.ID_untruc < rhs.ID_untruc;
 		}
-
 		static constexpr bool name_cmp(const ParamNameID& lhs, const ParamNameID& rhs) {
 			auto res = const_strcmp(lhs.cleanName, rhs.cleanName);
 			if (res == 0)
@@ -29,15 +27,12 @@ namespace Meta
 
 			return res < 0;
 		}
-
 		static constexpr bool name_eq(const ParamNameID& lhs, const ParamNameID& rhs) {
 			return (const_strcmp(lhs.cleanName, rhs.cleanName) == 0) && (lhs.isPtr == rhs.isPtr);
 		}
-
 		friend constexpr bool operator<(const ParamNameID& lhs, sv rhs) {
 			return const_strcmp(lhs.cleanName, rhs) < 0;
 		}
-
 		friend constexpr bool operator<(sv lhs, const ParamNameID& rhs) {
 			return const_strcmp(lhs, rhs.cleanName) < 0;
 		}
@@ -46,7 +41,7 @@ namespace Meta
 	consteval size_t CalcTotalParamAndOrderCount(auto funcMetaRange) {
 		size_t count = 0;
 		for (meta::info funcMeta : funcMetaRange) {
-			count += size(meta::param_range(funcMeta));
+			count += size(meta::parameters_of(funcMeta));
 		}
 		return count;
 	}
@@ -57,7 +52,7 @@ namespace Meta
 
 		// Gather metas, names and IDs of all params and orders from function parameters
 		for (int paramIdx = 0; meta::info funcMeta : funcMetaRange) {
-			for (meta::info paramMeta : meta::param_range(funcMeta)) {
+			for (meta::info paramMeta : meta::parameters_of(funcMeta)) {
 				nameIDs[paramIdx].cleanName = clean_name(paramMeta);
 				nameIDs[paramIdx].ID_untruc = paramIdx;
 				nameIDs[paramIdx].ID        = paramIdx;
@@ -149,7 +144,7 @@ namespace Meta
 		// Gather names of all function params and orders
 		std::array<meta::info, totalParamAndOrderCount> allMetas{};
 		for (int paramIdx = 0; meta::info funcMeta : funcMetaRange)
-			for (meta::info paramMeta : meta::param_range(funcMeta))
+			for (meta::info paramMeta : meta::parameters_of(funcMeta))
 				allMetas[paramIdx++] = paramMeta;
 
 		constexpr auto truncated_size = nameIDsHelper::nameIDs.size();
