@@ -48,22 +48,22 @@ namespace DefaultCallOrder {
 	void DefaultCallOrder1(std::ofstream& file) {
 		file << "void CallDefaultOrder1() {" nl;
 
-		forActors(file, defaultOrder1, tab, "Actors{0}Update", "(Actors{0}_gv, {{}});" nl);
+		forActors(file, defaultOrder1, tab, "Actors{0}Update", "(Actors{0}_gv, OActor{0}Update{{}});" nl);
 
 		for (int obj_idx = 1; obj_idx <= obj_num; ++obj_idx) {
 			for (int i = 0; i < obj_act_asoc_mat[obj_idx - 1].size(); i++) {
 				const int act_idx = obj_act_asoc_mat[obj_idx - 1][i];
 				addFuncName  (file, defaultOrder1, tab, "Objs{0}MovedByActs{1}", obj_idx, act_idx);
-				addFuncParams(file, "(Objects{0}_gv, Actors{1}_gv, {{}}, {{}});" nl, obj_idx, act_idx);
+				addFuncParams(file, "(Objects{0}_gv, Actors{1}_gv, OObject{0}Moved{{}}, OActor{1}UpdateDone{{}});" nl, obj_idx, act_idx);
 			}
 			addFuncName  (file, defaultOrder1, tab, "Objs{0}WorldWrap", obj_idx);
-			addFuncParams(file, "(Objects{0}_gv, {{}});" nl, obj_idx);
+			addFuncParams(file, "(Objects{0}_gv, OObject{0}Wrap{{}});" nl, obj_idx);
 
 			addFuncName  (file, defaultOrder1, tab, "Objs{0}Draw", obj_idx);
-			addFuncParams(file, "(Objects{0}_gv, {{}});" nl, obj_idx);
+			addFuncParams(file, "(Objects{0}_gv, OObject{0}Draw{{}});" nl, obj_idx);
 
 			addFuncName  (file, defaultOrder1, tab, "Objs{0}UpdateCurrent", obj_idx);
-			addFuncParams(file, "(Objects{0}_gv, {{}});" nl, obj_idx);
+			addFuncParams(file, "(Objects{0}_gv, OObject{0}UpdateCurrent{{}});" nl, obj_idx);
 
 			file << nl;
 		}
@@ -74,21 +74,21 @@ namespace DefaultCallOrder {
 	void DefaultCallOrder2(std::ofstream& file) {
 		file << "void CallDefaultOrder2() {" nl;
 
-		forActors(file, defaultOrder2, tab, "Actors{0}Update", "(Actors{0}_gv, {{}});" nl);
+		forActors(file, defaultOrder2, tab, "Actors{0}Update", "(Actors{0}_gv, OActor{0}Update{{}});" nl);
 
 		for (int obj_idx = 1; obj_idx <= obj_num; ++obj_idx) {
 			for (int i = 0; i < obj_act_asoc_mat[obj_idx - 1].size(); i++) {
 				const int act_idx = obj_act_asoc_mat[obj_idx - 1][i];
 				addFuncName  (file, defaultOrder2, tab, "Objs{0}MovedByActs{1}", obj_idx, act_idx);
-				addFuncParams(file, "(Objects{0}_gv, Actors{1}_gv, {{}}, {{}});" nl, obj_idx, act_idx);
+				addFuncParams(file, "(Objects{0}_gv, Actors{1}_gv, OObject{0}Moved{{}}, OActor{1}UpdateDone{{}});" nl, obj_idx, act_idx);
 			}
 			file << nl;
 		}
 		file << nl;
 
-		forObjects(file, defaultOrder2, tab, "Objs{0}WorldWrap"    , "(Objects{0}_gv, {{}});" nl);
-		forObjects(file, defaultOrder2, tab, "Objs{0}Draw"         , "(Objects{0}_gv, {{}});" nl);
-		forObjects(file, defaultOrder2, tab, "Objs{0}UpdateCurrent", "(Objects{0}_gv, {{}});" nl);
+		forObjects(file, defaultOrder2, tab, "Objs{0}WorldWrap"    , "(Objects{0}_gv, OObject{0}Wrap{{}});" nl);
+		forObjects(file, defaultOrder2, tab, "Objs{0}Draw"         , "(Objects{0}_gv, OObject{0}Draw{{}});" nl);
+		forObjects(file, defaultOrder2, tab, "Objs{0}UpdateCurrent", "(Objects{0}_gv, OObject{0}UpdateCurrent{{}});" nl);
 
 		file << "}" nl2;
 	}

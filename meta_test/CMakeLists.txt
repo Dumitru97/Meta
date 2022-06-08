@@ -14,6 +14,8 @@ if (CMAKE_GENERATOR MATCHES "Visual Studio")
 	set(compiler_flags	"SHELL:-Xclang -std=c++20"
 						"SHELL:-Xclang -freflection"
 						-mavx2
+						$<$<CONFIG:Debug>:SHELL:-Xclang -O0>
+						$<$<CONFIG:Release>:SHELL:-Xclang -O3>
 						"SHELL:-Xclang -fconstexpr-steps"
 						"SHELL:-Xclang 1000000000"
 						"SHELL:-Xclang -Wno-deprecated-enum-enum-conversion"

@@ -7,8 +7,8 @@ namespace Orders {
 	std::string ObjectOrders(int obj_idx)
 	{
 		return std::format(
-			"struct OObject{0}MovedBy {{}};" nl
-			"struct OObject{0}Wrap : OObject{0}MovedBy {{}};" nl
+			"struct OObject{0}Moved {{}};" nl
+			"struct OObject{0}Wrap : OObject{0}Moved {{}};" nl
 			"struct OObject{0}Draw : OObject{0}Wrap {{}};" nl
 			"struct OObject{0}UpdateCurrent : OObject{0}Wrap {{}};" nl2
 			, obj_idx);

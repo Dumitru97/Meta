@@ -55,15 +55,22 @@ DefaultOrderInputPreprocess(const FuncNameArrType& cont, ParamType custom_params
 int main() {
 	constexpr Meta::SAFunctionOrder::SAParams empty_sa_params = {.reps = 0, .temp = 0, .reps_increment = 0, .temp_decrement = 0, .pow_mult = 0 };
 
-	//Default order1 cost
-	std::cout << "DefaultOrder1" << "\n";
-	auto defaultSAOrderInputPreprocess1 = DefaultOrderInputPreprocess{ defaultOrder1, empty_sa_params };
-	META_OPTIM_TO_FILE_FUNC(ON, FN, SAFunctionOrderOP)(false, defaultSAOrderInputPreprocess1, std::optional{ sa_params }, nullptr, nullptr);
+	std::cout << "func num: " << defaultOrder1.size() << '\n';
+	std::cout << "\n";
 
-	//Default order2 cost
-	std::cout << "DefaultOrder2" << "\n";
-	auto defaultSAOrderInputPreprocess2 = DefaultOrderInputPreprocess{ defaultOrder2, empty_sa_params };
-	META_OPTIM_TO_FILE_FUNC(ON, FN, SAFunctionOrderOP)(false, defaultSAOrderInputPreprocess2, std::optional{ sa_params }, nullptr, nullptr);
+	////Default order1 cost
+	//std::cout << "DefaultOrder1" << "\n";
+	//auto defaultSAOrderInputPreprocess1 = DefaultOrderInputPreprocess{ defaultOrder1, empty_sa_params };
+	//META_OPTIM_TO_FILE_FUNC(ON, FN, SAFunctionOrderOP)(false, defaultSAOrderInputPreprocess1, std::optional{ sa_params }, nullptr, nullptr);
+
+	////Default order2 cost
+	//std::cout << "DefaultOrder2" << "\n";
+	//auto defaultSAOrderInputPreprocess2 = DefaultOrderInputPreprocess{ defaultOrder2, empty_sa_params };
+	//META_OPTIM_TO_FILE_FUNC(ON, FN, SAFunctionOrderOP)(false, defaultSAOrderInputPreprocess2, std::optional{ sa_params }, nullptr, nullptr);
+
+	std::cout << "\n";
+	std::cout << "\n";
+	std::cout << "\n";
 
 	//SA from default order2
 	std::cout << "SA from DefaultOrder2" << "\n";
@@ -74,4 +81,8 @@ int main() {
 	std::cout << "BB from DefaultOrder2" << "\n";
 	auto defaultBBOrderInputPreprocess3 = DefaultOrderInputPreprocess{ defaultOrder2, bb_params };
 	META_OPTIM_TO_FILE_FUNC(ON, FN, BBFunctionOrderOP)(false, defaultBBOrderInputPreprocess3, std::optional{ bb_params }, nullptr, nullptr);
+
+#ifdef _WIN32
+	system("pause");
+#endif
 }

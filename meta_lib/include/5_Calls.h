@@ -5,26 +5,25 @@ namespace Meta
 {
 	namespace std = ::std;
 
-	template <class F, class Tuple1, std::size_t... I1, class Tuple2, std::size_t... I2>
-	constexpr decltype(auto) custom_apply_impl(F&& f, Tuple1&& t1, std::index_sequence<I1...>, Tuple2&& t2, std::index_sequence<I2...>)
+	template <class F, class Tup1, class Tup2, std::size_t... I1, std::size_t... I2>
+	constexpr void custom_apply_impl(F&& f, Tup1&& t1, Tup2&& t2, std::index_sequence<I1...>, std::index_sequence<I2...>)
 	{
-		return std::invoke(std::forward<F>(f), *std::get<I1>(std::forward<Tuple1>(t1))..., std::get<I2>(std::forward<Tuple2>(t2))...);
+		std::invoke(std::forward<F>(f), *std::get<I1>(std::forward<Tup1>(t1))..., std::get<I2>(std::forward<Tup2>(t2))...);
 	}
 	
-	template <class F, class Tuple1, class Tuple2>
-	constexpr decltype(auto) custom_apply(F&& f, Tuple1&& t1, Tuple2&& t2)
+	template <class F, class Tup1, class Tup2>
+	constexpr void custom_apply(F&& f, Tup1&& t1, Tup2&& t2)
 	{
-		return custom_apply_impl(
-			std::forward<F>(f), std::forward<Tuple1>(t1),
-			std::make_index_sequence<std::tuple_size_v<std::remove_reference_t<Tuple1>>>{},
-			std::forward<Tuple2>(t2),
-			std::make_index_sequence<std::tuple_size_v<std::remove_reference_t<Tuple2>>>{});
+		custom_apply_impl(
+			std::forward<F>(f), std::forward<Tup1>(t1), std::forward<Tup2>(t2),
+			std::make_index_sequence<std::tuple_size_v<std::remove_reference_t<Tup1>>>{},
+			std::make_index_sequence<std::tuple_size_v<std::remove_reference_t<Tup2>>>{});
 	}
 
-	template<auto paramRangeMeta, auto orderRangeMeta>
+	template<auto paramAddrMetaArrMeta, auto orderMetaArrMeta>
 	consteval void PackParamsAndCall(auto funcMeta) {
-		std::tuple paramTuple = std::make_tuple(...[:[:paramRangeMeta:]:]...);
-		std::tuple orderTuple = std::make_tuple(...[:[:orderRangeMeta:]:]...);
+		std::tuple paramTuple = std::make_tuple(...[:[:paramAddrMetaArrMeta:]:]...);
+		std::tuple orderTuple = std::make_tuple(...[:[:orderMetaArrMeta:]:]...);
 
 		->fragment {
 			constexpr std::tuple paramTupleUnquoted = %{paramTuple};
@@ -34,7 +33,7 @@ namespace Meta
 	}
 
 	template<auto paramRangeMeta, int size>
-	consteval auto ParamRangeToVarMetaArr() {
+	consteval auto ParamRangeToVarAddrMetaArr() {
 		std::array<meta::info, size> meta_arr{};
 
 		int i = 0;
@@ -58,24 +57,25 @@ namespace Meta
 		return meta_arr;
 	}
 
-	template<auto funcsDataImag, auto funcsArr, auto funcsIdxArr>
+	template<auto funcsDataRI, auto funcsIdxArr>
 	consteval void CallFuncs() {
 		for_loop<0, funcsIdxArr.size()>([]<int funcIdx>() consteval {
-			constexpr auto paramsSize = funcsArr[funcIdx].param_count();
-			constexpr auto ordersSize = funcsArr[funcIdx].order_count();
-			constexpr auto fullRange = meta::param_range(funcsDataImag.metas[funcIdx]);
+			constexpr auto paramsSize = funcsDataRI.real.funcs[funcIdx].param_count();
+			constexpr auto ordersSize = funcsDataRI.real.funcs[funcIdx].order_count();
+			constexpr auto func       = funcsDataRI.imag.metas[funcIdx];
+			constexpr auto fullRange  = meta::param_range(func);
 
 			constexpr auto paramRange = meta::param_range(fullRange.begin(), std::next(fullRange.begin(), paramsSize));
 			constexpr auto orderRange = meta::param_range(std::next(fullRange.begin(), paramsSize), fullRange.end());
 			(void)paramRange;
 			(void)orderRange;
 
-			constexpr auto paramArr = ParamRangeToVarMetaArr<^ paramRange, paramsSize>();
-			constexpr auto orderArr = OrderRangeToValueMetaArr<^ orderRange, ordersSize>();
+			constexpr auto paramArr = ParamRangeToVarAddrMetaArr<^paramRange, paramsSize>();
+			constexpr auto orderArr = OrderRangeToValueMetaArr<^orderRange, ordersSize>();
 			(void)paramArr;
 			(void)orderArr;
 
-			PackParamsAndCall<^ paramArr, ^ orderArr>(funcsDataImag.metas[funcIdx]);
+			PackParamsAndCall<^paramArr, ^orderArr>(func);
 		});
 	}
 

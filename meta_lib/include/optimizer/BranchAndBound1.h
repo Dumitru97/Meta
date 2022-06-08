@@ -48,15 +48,14 @@ namespace Meta
             // Class definitions
         public:
             struct ctx {
-                cost_t cost;
-                cost_t lb;
-                cost_t avs;
+                cost_t cost; // Cost of partial solution
+                cost_t lb;   // Sum of cost and minimum costs of remaining options
+                cost_t avs;  // Average cost of remaining options
 
-                std::vector<int> sol;
-                std::vector<int> options;
+                std::vector<int> sol;     // Full of partial solution
+                std::vector<int> options; // List of allowed, yet to be used, functions
 
-                // Priority check
-                bool operator<(const ctx& rhs) const {
+                auto calc_points(const ctx& rhs) const {
                     int points = 0, rhs_points = 0;
 
                     const float constant = (rhs.cost - cost) + (rhs.avs - avs);
@@ -76,7 +75,23 @@ namespace Meta
                         rhs_points += (0 < rhs_constant - cmatsType::min[opt]);
                     }
 
-                    return points < rhs_points;
+                    return std::pair{ points, rhs_points };
+                }
+
+                // Priority check
+                bool operator<(const ctx& rhs) const {
+                    const auto points = calc_points(rhs);
+                    return points.first < points.second;
+                };
+
+                bool operator>(const ctx& rhs) const {
+                    const auto points = calc_points(rhs);
+                    return points.first > points.second;
+                };
+
+                bool operator<=(const ctx& rhs) const {
+                    const auto points = calc_points(rhs);
+                    return points.first <= points.second;
                 };
             };
 
@@ -90,13 +105,18 @@ namespace Meta
                         std::make_heap(this->c.begin(), this->c.end(), this->comp);
                 }
 
-                void cull(float ratio) {
-                    const size_t nth_idx = this->c.size() * ratio;
+                void cull(float ratio, float thresh) {
+                    size_t nth_idx = this->c.size() * ratio;
+                    if (nth_idx < this->c.size() - thresh)
+                        nth_idx = this->c.size() - thresh;
+
                     std::nth_element(this->c.begin(), this->c.begin() + nth_idx, this->c.end(), std::less{});
                     const auto nth = this->c[nth_idx];
 
-                    remove_if([&nth](ctx& ctx) {
-                        return ctx < nth;
+                    this->remove_if([&, count = 0](ctx& ctx) mutable {
+                        const auto res = (ctx <= nth);
+                        count += res;
+                        return res && count < nth_idx;
                     });
                 }
             };
@@ -220,7 +240,7 @@ namespace Meta
                     }
 
                     if (pqueue.size() > bb_params.pqueueThresh)
-                        pqueue.cull(bb_params.cullRatio);
+                        pqueue.cull(bb_params.cullRatio, bb_params.pqueueThresh);
 
                     if (pqueue.empty())
                         break;
@@ -237,6 +257,7 @@ namespace Meta
                 }
                 if (!found_sol) {
                     std::cout << "Did not find solution. Using returning input instead of output order.\n";
+                    std::cout << std::format("BranchAndBound - Valid input cost: {:.2f}, Diff: {:.2f}, Proc: {:.2f}\n", initcost, 0.0f, 0.0f);
                     return initFuncsData;
                 }
 
@@ -264,7 +285,8 @@ namespace Meta
 
                 auto cost = Cost(funcs);
                 auto costdiff = initcost - cost;
-                std::cout << std::format("BranchAndBound - Valid input cost: {}, Output cost: {}, Diff: {}\n", initcost, cost, costdiff);
+                auto proc = ((cost - initcost) / initcost) * 100;
+                std::cout << std::format("BranchAndBound - Valid input cost: {:.2f}, Output cost: {:.2f}, Diff: {:.2f}, Proc: {:.2f}\n", initcost, cost, costdiff, -proc);
 
                 if (costdiff < -1E-3f) {
                     std::cout << "Cost increase. Using returning input instead of output order.\n\n";

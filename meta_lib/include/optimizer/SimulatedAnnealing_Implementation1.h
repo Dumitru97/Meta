@@ -197,7 +197,7 @@ namespace Meta
 
 					// Random a function to swap with
 					minVal = OnlyMat::values_idx;
-					maxVal = fmats.swap_only[row][OnlyMat::count_idx] - 1;
+					maxVal = OnlyMat::values_idx + fmats.swap_only[row][OnlyMat::count_idx] - 1;
 					swapUnifDistr.param(typename std::uniform_int<int>::param_type{ minVal, maxVal });
 					const int col = swapUnifDistr(gen);
 					origIdx2 = fmats.swap_only[row][col];
@@ -309,7 +309,8 @@ namespace Meta
 
 				auto cost = Cost(UnusedType{});
 				auto costdiff = initcost - cost;
-				std::cout << std::format("SimulatedAnnealing - Valid input cost: {}, Output cost: {}, Diff: {}\n", initcost, cost, costdiff);
+				auto proc = ((cost - initcost) / initcost) * 100;
+				std::cout << std::format("SimulatedAnnealing - Valid input cost: {:.2f}, Output cost: {:.2f}, Diff: {:.2f}, Proc: {:.2f}\n", initcost, cost, costdiff, -proc);
 
 				if (costdiff < -1E-3f) {
 					std::cout << "Cost increase. Using returning input instead of output order.\n";

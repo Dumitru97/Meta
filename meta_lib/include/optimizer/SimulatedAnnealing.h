@@ -92,10 +92,10 @@ namespace Meta
 			while (m != reps) {
 				const auto delta = set.NeighbourDelta(sol);
 				const auto ncost = set.CostAndApply(sol, cost, delta);
-				const auto neg_diff = cost - ncost; // Current cost - new cost
+				const auto diff = cost - ncost; // Current cost - new cost
 
 				// New cost is higher and don't pick higher cost according to probability)
-				if (neg_diff < 0 && set.Probability(neg_diff, temp) < udist(rd))
+				if (diff < 0 && set.Probability(diff, temp) < udist(rd))
 					set.RevertNeighbourDelta(sol, delta);
 				else
 					cost = ncost;

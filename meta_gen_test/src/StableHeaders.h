@@ -96,6 +96,29 @@ inline float mod_height(float val) {
 inline unsigned world_mat[world_height][world_width]{};
 using World = unsigned(*)[world_width];
 inline World world = world_mat;
+
+
+
+//https://en.wikipedia.org/wiki/Permuted_congruential_generator
+inline uint64_t mcg_state = 0xcafef00dd15ea5e5u;	// Must be odd
+
+inline uint32_t pcg32_fast(void)
+{
+	uint64_t x = mcg_state;
+	unsigned count = (unsigned)(x >> 61);	// 61 = 64 - 3
+
+	mcg_state = x * 0xf13283ad;
+	x ^= x >> 22;
+	return (uint32_t)(x >> (22 + count));	// 22 = 32 - 3 - 7
+}
+
+//https://www.pcg-random.org/posts/bounded-rands.html
+inline uint32_t bounded_rand(uint32_t range) {
+	uint32_t x = pcg32_fast();
+	uint64_t m = uint64_t(x) * uint64_t(range);
+	return m >> 32;
+}
+
 )";
 	}
 

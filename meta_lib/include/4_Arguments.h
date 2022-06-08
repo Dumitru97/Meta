@@ -42,10 +42,10 @@ namespace Meta
 
 		// Convert string view to const char*
 		constexpr auto char_arr = explode<clean_sz + 1>(clean_sv.str); // + null terminating char
-		constexpr const char* clean_str = ArrToString<char_arr, clean_sz>();
+		constexpr const char* clean_str = ArrToString<char_arr, clean_sz>(); // __concatenate each
 
 		// Decorate with suffix _gp(global pointer) or _gv(global variable)
-		constexpr bool isPtr = is_ptr_type(dirty_var_name, dirty_len);
+		constexpr bool isPtr = meta::is_pointer_type(meta::type_of(paramMeta));
 		constexpr const char* var_name = isPtr ? __concatenate(clean_str, "_gp") : __concatenate(clean_str, "_gv");
 
 		return var_name;

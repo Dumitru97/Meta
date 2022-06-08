@@ -152,9 +152,7 @@ consteval {																								\
 	constexpr auto funcsDataRI = Meta::CreateFuncsData<FN_Helper, ordersDataRI.imag, paramsDataI>();	\
 	Meta::meta::compiler.print("CALL_FUNCTIONS_OPTIMIZED: Created functions data.");					\
 																										\
-	Meta::CallFuncs<funcsDataRI.imag,																	\
-					funcsDataRI.real.funcs,																\
-					META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN, OP, PAR)>();						\
+	Meta::CallFuncs<funcsDataRI, META_PRECOMPUTE_PREC_FUNC_IDX_ARRAY_VAR(ON, FN, OP, PAR)>();			\
 																										\
 	Meta::meta::compiler.print("CALL_FUNCTIONS_OPTIMIZED: "												\
 		"Listing function calls in optimized order from header file : ");								\

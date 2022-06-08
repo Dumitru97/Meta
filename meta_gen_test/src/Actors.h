@@ -28,7 +28,11 @@ namespace Actors {
 		if (axis & Axis::X)
 			fmt += tab2 "act.pos.x += x_adv;" nl;
 		if (axis & Axis::Y)
-			fmt += tab2 "act.pos.y += y_adv;" nl;
+			fmt += tab2 "act.pos.y += y_adv;" nl2;
+
+		fmt +=
+			tab2 "act.pos.x = act.pos.x.apply(mod_width);" nl
+			tab2 "act.pos.y = act.pos.y.apply(mod_height);" nl;
 
 		fmt += tab "}}" nl
 			"}}" nl;
